@@ -22,3 +22,19 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Original assignment downloads (cleaned Markdown references are in docs/)
+/Machine Project Checklist - Security Svcs.pdf
+/Machine Project Specifications - Security Svcs.pdf
+
+# Editable starter dependency, retained with its embedded license notices
+!/app/sqlite-jdbc-3.23.1.jar
+
+# Local application and IDE output
+/app/build/
+/app/dist/
+/app/nbproject/private/
+/app/database.db
+/app/database.db-*
+.DS_Store
+__MACOSX/
