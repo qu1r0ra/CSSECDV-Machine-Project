@@ -1,5 +1,11 @@
 # Agent instructions
 
+## Project references
+
+- Before implementing or reviewing requirements, read the [assignment specification](docs/specifications.md) and [grading checklist](docs/checklist.md).
+- Before building, running, or editing Swing forms, read the [development guide](docs/development.md).
+- When recording submission readiness, update [TODO](docs/TODO.md) with evidence and links to the implementation issues.
+
 ## Agent skills
 
 ### Issue tracker

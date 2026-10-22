@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: lib/sqlite-jdbc-3.23.1.jar
+X-COMMENT: Main-Class will be added automatically by build
+
