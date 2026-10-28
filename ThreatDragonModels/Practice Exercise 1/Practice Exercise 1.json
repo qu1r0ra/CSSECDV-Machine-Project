@@ -1,0 +1,2850 @@
+{
+  "version": "2.4.2",
+  "summary": {
+    "title": "Brew & Bloom Coffee Co. Ordering Application",
+    "owner": "",
+    "description": "Threat model covering the 4 data flows in section 5.2 of the reference Threat Model Document, for Practical Exercise 1.",
+    "id": 0
+  },
+  "detail": {
+    "contributors": [],
+    "diagrams": [
+      {
+        "id": 0,
+        "title": "1. Customer Places an Order",
+        "diagramType": "STRIDE",
+        "placeholder": "Click the arrow icons to edit this diagram",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "version": "2.4.2",
+        "cells": [
+          {
+            "position": {
+              "x": 20,
+              "y": 40
+            },
+            "size": {
+              "width": 200,
+              "height": 160
+            },
+            "attrs": {
+              "text": {
+                "text": "Client Boundary (Untrusted)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d1-b-client",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Client Boundary (Untrusted)",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 300,
+              "y": 40
+            },
+            "size": {
+              "width": 220,
+              "height": 220
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d1-b-server",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Web Application Server Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 300,
+              "y": 320
+            },
+            "size": {
+              "width": 220,
+              "height": 140
+            },
+            "attrs": {
+              "text": {
+                "text": "Database Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d1-b-db",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Database Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 600,
+              "y": 40
+            },
+            "size": {
+              "width": 240,
+              "height": 160
+            },
+            "attrs": {
+              "text": {
+                "text": "Payment Gateway Boundary (Third-Party, Partially Trusted)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d1-b-pay",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Payment Gateway Boundary (Third-Party, Partially Trusted)",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 100
+            },
+            "size": {
+              "width": 120,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "Customer"
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 2,
+            "id": "d1-customer",
+            "data": {
+              "type": "tm.Actor",
+              "name": "Customer",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 330,
+              "y": 120
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server"
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 2,
+            "id": "d1-server",
+            "data": {
+              "type": "tm.Process",
+              "name": "Web Application Server",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-007",
+                  "title": "Application Code/Configuration Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Malicious modification of the application's source code, server configurations, or environment variables could introduce backdoors or disable security features.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                },
+                {
+                  "id": "T-012",
+                  "title": "Application Code and Configuration Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of source code, server configurations, environment variables, or API keys.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 11
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 12
+                },
+                {
+                  "id": "T-014",
+                  "title": "Web Application Server DoS",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Denial of Service",
+                  "description": "An attacker could flood the Web Application Server with excessive requests, making it unavailable.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 13
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 14
+                },
+                {
+                  "id": "T-016",
+                  "title": "Customer to Staff Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A customer could exploit a vulnerability to gain unauthorized access to Barista, Manager, or Administrator functionalities.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 15
+                },
+                {
+                  "id": "T-017",
+                  "title": "Barista/Manager to Administrator Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A Barista or Manager could exploit a vulnerability to gain Administrator privileges.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 16
+                },
+                {
+                  "id": "T-018",
+                  "title": "Horizontal Privilege Escalation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of Privilege",
+                  "description": "Gaining unauthorized access to another user's account within the same privilege level.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 17
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 390
+            },
+            "size": {
+              "width": 160,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "MongoDB Database"
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 2,
+            "id": "d1-db",
+            "data": {
+              "type": "tm.Store",
+              "name": "MongoDB Database",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 620,
+              "y": 100
+            },
+            "size": {
+              "width": 120,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "Payment Gateway (Third-Party)"
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 2,
+            "id": "d1-payment",
+            "data": {
+              "type": "tm.Actor",
+              "name": "Payment Gateway (Third-Party)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d1-f1",
+            "zIndex": 3,
+            "source": {
+              "cell": "d1-customer"
+            },
+            "target": {
+              "cell": "d1-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "1.1-1.2 Submit order (validated)"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "1.1-1.2 Submit order (validated)"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "1.1-1.2 Submit order (validated)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d1-f2",
+            "zIndex": 3,
+            "source": {
+              "cell": "d1-server"
+            },
+            "target": {
+              "cell": "d1-payment"
+            },
+            "attrs": {
+              "text": {
+                "text": "1.3 Tokenized payment request"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "1.3 Tokenized payment request"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "1.3 Tokenized payment request",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d1-f3",
+            "zIndex": 3,
+            "source": {
+              "cell": "d1-payment"
+            },
+            "target": {
+              "cell": "d1-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "1.4 Transaction response"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "1.4 Transaction response"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "1.4 Transaction response",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d1-f4",
+            "zIndex": 3,
+            "source": {
+              "cell": "d1-server"
+            },
+            "target": {
+              "cell": "d1-db"
+            },
+            "attrs": {
+              "text": {
+                "text": "1.5-1.6 Store order + payment status"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "1.5-1.6 Store order + payment status"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "1.5-1.6 Store order + payment status",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d1-f5",
+            "zIndex": 3,
+            "source": {
+              "cell": "d1-server"
+            },
+            "target": {
+              "cell": "d1-customer"
+            },
+            "attrs": {
+              "text": {
+                "text": "1.7-1.8 Order confirmation & status"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "1.7-1.8 Order confirmation & status"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "1.7-1.8 Order confirmation & status",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "title": "2. Barista Updates Order Status",
+        "diagramType": "STRIDE",
+        "placeholder": "Click the arrow icons to edit this diagram",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "version": "2.4.2",
+        "cells": [
+          {
+            "position": {
+              "x": 20,
+              "y": 40
+            },
+            "size": {
+              "width": 220,
+              "height": 160
+            },
+            "attrs": {
+              "text": {
+                "text": "Client Boundary (Untrusted)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d2-b-client",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Client Boundary (Untrusted)",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 40
+            },
+            "size": {
+              "width": 220,
+              "height": 220
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d2-b-server",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Web Application Server Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 320
+            },
+            "size": {
+              "width": 220,
+              "height": 140
+            },
+            "attrs": {
+              "text": {
+                "text": "Database Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d2-b-db",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Database Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 50,
+              "y": 100
+            },
+            "size": {
+              "width": 120,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "Barista"
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 2,
+            "id": "d2-barista",
+            "data": {
+              "type": "tm.Actor",
+              "name": "Barista",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 350,
+              "y": 120
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server"
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 2,
+            "id": "d2-server",
+            "data": {
+              "type": "tm.Process",
+              "name": "Web Application Server",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-007",
+                  "title": "Application Code/Configuration Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Malicious modification of the application's source code, server configurations, or environment variables could introduce backdoors or disable security features.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                },
+                {
+                  "id": "T-012",
+                  "title": "Application Code and Configuration Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of source code, server configurations, environment variables, or API keys.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 11
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 12
+                },
+                {
+                  "id": "T-014",
+                  "title": "Web Application Server DoS",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Denial of Service",
+                  "description": "An attacker could flood the Web Application Server with excessive requests, making it unavailable.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 13
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 14
+                },
+                {
+                  "id": "T-016",
+                  "title": "Customer to Staff Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A customer could exploit a vulnerability to gain unauthorized access to Barista, Manager, or Administrator functionalities.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 15
+                },
+                {
+                  "id": "T-017",
+                  "title": "Barista/Manager to Administrator Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A Barista or Manager could exploit a vulnerability to gain Administrator privileges.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 16
+                },
+                {
+                  "id": "T-018",
+                  "title": "Horizontal Privilege Escalation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of Privilege",
+                  "description": "Gaining unauthorized access to another user's account within the same privilege level.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 17
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 340,
+              "y": 390
+            },
+            "size": {
+              "width": 160,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "MongoDB Database"
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 2,
+            "id": "d2-db",
+            "data": {
+              "type": "tm.Store",
+              "name": "MongoDB Database",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d2-f1",
+            "zIndex": 3,
+            "source": {
+              "cell": "d2-barista"
+            },
+            "target": {
+              "cell": "d2-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "2.1 Request incoming orders (authenticated)"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "2.1 Request incoming orders (authenticated)"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "2.1 Request incoming orders (authenticated)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d2-f2",
+            "zIndex": 3,
+            "source": {
+              "cell": "d2-server"
+            },
+            "target": {
+              "cell": "d2-db"
+            },
+            "attrs": {
+              "text": {
+                "text": "2.2 Query order data"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "2.2 Query order data"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "2.2 Query order data",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d2-f3",
+            "zIndex": 3,
+            "source": {
+              "cell": "d2-db"
+            },
+            "target": {
+              "cell": "d2-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "2.3 Pending order data"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "2.3 Pending order data"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "2.3 Pending order data",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d2-f4",
+            "zIndex": 3,
+            "source": {
+              "cell": "d2-server"
+            },
+            "target": {
+              "cell": "d2-barista"
+            },
+            "attrs": {
+              "text": {
+                "text": "2.4 Order list"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "2.4 Order list"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "2.4 Order list",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d2-f5",
+            "zIndex": 3,
+            "source": {
+              "cell": "d2-barista"
+            },
+            "target": {
+              "cell": "d2-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "2.6 Updated order status"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "2.6 Updated order status"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "2.6 Updated order status",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d2-f6",
+            "zIndex": 3,
+            "source": {
+              "cell": "d2-server"
+            },
+            "target": {
+              "cell": "d2-db"
+            },
+            "attrs": {
+              "text": {
+                "text": "2.7 Update order record"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "2.7 Update order record"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "2.7 Update order record",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "3. Manager Accesses Basic Sales Reports",
+        "diagramType": "STRIDE",
+        "placeholder": "Click the arrow icons to edit this diagram",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "version": "2.4.2",
+        "cells": [
+          {
+            "position": {
+              "x": 20,
+              "y": 40
+            },
+            "size": {
+              "width": 220,
+              "height": 160
+            },
+            "attrs": {
+              "text": {
+                "text": "Client Boundary (Untrusted)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d3-b-client",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Client Boundary (Untrusted)",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 40
+            },
+            "size": {
+              "width": 220,
+              "height": 220
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d3-b-server",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Web Application Server Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 320
+            },
+            "size": {
+              "width": 220,
+              "height": 140
+            },
+            "attrs": {
+              "text": {
+                "text": "Database Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d3-b-db",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Database Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 50,
+              "y": 100
+            },
+            "size": {
+              "width": 120,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "Manager"
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 2,
+            "id": "d3-manager",
+            "data": {
+              "type": "tm.Actor",
+              "name": "Manager",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 350,
+              "y": 120
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server"
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 2,
+            "id": "d3-server",
+            "data": {
+              "type": "tm.Process",
+              "name": "Web Application Server",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-007",
+                  "title": "Application Code/Configuration Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Malicious modification of the application's source code, server configurations, or environment variables could introduce backdoors or disable security features.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                },
+                {
+                  "id": "T-012",
+                  "title": "Application Code and Configuration Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of source code, server configurations, environment variables, or API keys.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 11
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 12
+                },
+                {
+                  "id": "T-014",
+                  "title": "Web Application Server DoS",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Denial of Service",
+                  "description": "An attacker could flood the Web Application Server with excessive requests, making it unavailable.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 13
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 14
+                },
+                {
+                  "id": "T-016",
+                  "title": "Customer to Staff Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A customer could exploit a vulnerability to gain unauthorized access to Barista, Manager, or Administrator functionalities.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 15
+                },
+                {
+                  "id": "T-017",
+                  "title": "Barista/Manager to Administrator Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A Barista or Manager could exploit a vulnerability to gain Administrator privileges.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 16
+                },
+                {
+                  "id": "T-018",
+                  "title": "Horizontal Privilege Escalation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of Privilege",
+                  "description": "Gaining unauthorized access to another user's account within the same privilege level.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 17
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 340,
+              "y": 390
+            },
+            "size": {
+              "width": 160,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "MongoDB Database"
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 2,
+            "id": "d3-db",
+            "data": {
+              "type": "tm.Store",
+              "name": "MongoDB Database",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d3-f1",
+            "zIndex": 3,
+            "source": {
+              "cell": "d3-manager"
+            },
+            "target": {
+              "cell": "d3-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "3.1 Request basic sales reports (authenticated)"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "3.1 Request basic sales reports (authenticated)"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "3.1 Request basic sales reports (authenticated)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d3-f2",
+            "zIndex": 3,
+            "source": {
+              "cell": "d3-server"
+            },
+            "target": {
+              "cell": "d3-db"
+            },
+            "attrs": {
+              "text": {
+                "text": "3.2 Query aggregated sales data"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "3.2 Query aggregated sales data"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "3.2 Query aggregated sales data",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d3-f3",
+            "zIndex": 3,
+            "source": {
+              "cell": "d3-db"
+            },
+            "target": {
+              "cell": "d3-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "3.3 Sales data"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "3.3 Sales data"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "3.3 Sales data",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d3-f4",
+            "zIndex": 3,
+            "source": {
+              "cell": "d3-server"
+            },
+            "target": {
+              "cell": "d3-manager"
+            },
+            "attrs": {
+              "text": {
+                "text": "3.4-3.5 Formatted sales report"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "3.4-3.5 Formatted sales report"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "3.4-3.5 Formatted sales report",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "4. Administrator Adds New Menu Item",
+        "diagramType": "STRIDE",
+        "placeholder": "Click the arrow icons to edit this diagram",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "version": "2.4.2",
+        "cells": [
+          {
+            "position": {
+              "x": 20,
+              "y": 40
+            },
+            "size": {
+              "width": 220,
+              "height": 160
+            },
+            "attrs": {
+              "text": {
+                "text": "Client Boundary (Untrusted)"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d4-b-client",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Client Boundary (Untrusted)",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 40
+            },
+            "size": {
+              "width": 220,
+              "height": 220
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d4-b-server",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Web Application Server Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 320,
+              "y": 320
+            },
+            "size": {
+              "width": 220,
+              "height": 140
+            },
+            "attrs": {
+              "text": {
+                "text": "Database Boundary"
+              }
+            },
+            "visible": true,
+            "shape": "trust-boundary-box",
+            "zIndex": 1,
+            "id": "d4-b-db",
+            "data": {
+              "type": "tm.Boundary",
+              "name": "Database Boundary",
+              "description": "",
+              "isTrustBoundary": true
+            }
+          },
+          {
+            "position": {
+              "x": 50,
+              "y": 100
+            },
+            "size": {
+              "width": 120,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "Administrator"
+              }
+            },
+            "visible": true,
+            "shape": "actor",
+            "zIndex": 2,
+            "id": "d4-admin",
+            "data": {
+              "type": "tm.Actor",
+              "name": "Administrator",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 350,
+              "y": 120
+            },
+            "size": {
+              "width": 140,
+              "height": 70
+            },
+            "attrs": {
+              "text": {
+                "text": "Web Application Server"
+              }
+            },
+            "visible": true,
+            "shape": "process",
+            "zIndex": 2,
+            "id": "d4-server",
+            "data": {
+              "type": "tm.Process",
+              "name": "Web Application Server",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-003",
+                  "title": "Web Application Server Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker might set up a fraudulent web server to phish user credentials or intercept sensitive data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-007",
+                  "title": "Application Code/Configuration Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Malicious modification of the application's source code, server configurations, or environment variables could introduce backdoors or disable security features.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                },
+                {
+                  "id": "T-012",
+                  "title": "Application Code and Configuration Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of source code, server configurations, environment variables, or API keys.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 11
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 12
+                },
+                {
+                  "id": "T-014",
+                  "title": "Web Application Server DoS",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Denial of Service",
+                  "description": "An attacker could flood the Web Application Server with excessive requests, making it unavailable.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 13
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 14
+                },
+                {
+                  "id": "T-016",
+                  "title": "Customer to Staff Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A customer could exploit a vulnerability to gain unauthorized access to Barista, Manager, or Administrator functionalities.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 15
+                },
+                {
+                  "id": "T-017",
+                  "title": "Barista/Manager to Administrator Privilege Escalation",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of Privilege",
+                  "description": "A Barista or Manager could exploit a vulnerability to gain Administrator privileges.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 16
+                },
+                {
+                  "id": "T-018",
+                  "title": "Horizontal Privilege Escalation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of Privilege",
+                  "description": "Gaining unauthorized access to another user's account within the same privilege level.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 17
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "position": {
+              "x": 340,
+              "y": 390
+            },
+            "size": {
+              "width": 160,
+              "height": 60
+            },
+            "attrs": {
+              "text": {
+                "text": "MongoDB Database"
+              }
+            },
+            "visible": true,
+            "shape": "store",
+            "zIndex": 2,
+            "id": "d4-db",
+            "data": {
+              "type": "tm.Store",
+              "name": "MongoDB Database",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "id": "T-001",
+                  "title": "Customer Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate a legitimate customer to place fraudulent orders or access their order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 0
+                },
+                {
+                  "id": "T-002",
+                  "title": "Staff Account Spoofing",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Spoofing",
+                  "description": "An attacker could impersonate staff to manipulate order statuses, access sales reports, or modify menu items and application configurations.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 1
+                },
+                {
+                  "id": "T-004",
+                  "title": "Order Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could modify order details (e.g., items, quantities, prices, status) in transit or at rest.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 2
+                },
+                {
+                  "id": "T-005",
+                  "title": "Menu Data Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "An attacker could alter menu item data (e.g., prices or descriptions) before it is stored in the database.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 3
+                },
+                {
+                  "id": "T-006",
+                  "title": "Sales Report Tampering",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "description": "Unauthorized individuals could alter sales data in the MongoDB Database, leading to falsified reports.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 4
+                },
+                {
+                  "id": "T-008",
+                  "title": "Fraudulent Order Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "A customer could deny placing an order if insufficient logging and non-repudiation controls are in place.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 5
+                },
+                {
+                  "id": "T-009",
+                  "title": "Staff Action Repudiation",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "description": "Staff members (Barista, Manager, Administrator) could deny performing actions if audit logs are insufficient, not immutable, or can be tampered with.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 6
+                },
+                {
+                  "id": "T-010",
+                  "title": "Customer PII Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to customer names, contact details, delivery addresses, and order history.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 7
+                },
+                {
+                  "id": "T-011",
+                  "title": "Staff Credential Disclosure",
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information Disclosure",
+                  "description": "Exposure of usernames, passwords, or session tokens for staff members due to insecure storage or unencrypted transmission.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 8
+                },
+                {
+                  "id": "T-013",
+                  "title": "Sales Data Disclosure",
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Information Disclosure",
+                  "description": "Unauthorized access to sales reports or underlying aggregated sales data.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 9
+                },
+                {
+                  "id": "T-015",
+                  "title": "MongoDB Database DoS",
+                  "status": "Open",
+                  "severity": "Low",
+                  "type": "Denial of Service",
+                  "description": "Malicious or poorly optimized queries could overload the database, making it unresponsive.",
+                  "mitigation": "",
+                  "modelType": "STRIDE",
+                  "number": 10
+                }
+              ],
+              "hasOpenThreats": true
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d4-f1",
+            "zIndex": 3,
+            "source": {
+              "cell": "d4-admin"
+            },
+            "target": {
+              "cell": "d4-server"
+            },
+            "attrs": {
+              "text": {
+                "text": "4.1-4.2 New menu item data (authenticated)"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "4.1-4.2 New menu item data (authenticated)"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "4.1-4.2 New menu item data (authenticated)",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d4-f2",
+            "zIndex": 3,
+            "source": {
+              "cell": "d4-server"
+            },
+            "target": {
+              "cell": "d4-db"
+            },
+            "attrs": {
+              "text": {
+                "text": "4.4 Create menu item record"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "4.4 Create menu item record"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "4.4 Create menu item record",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          },
+          {
+            "shape": "flow",
+            "id": "d4-f3",
+            "zIndex": 3,
+            "source": {
+              "cell": "d4-server"
+            },
+            "target": {
+              "cell": "d4-admin"
+            },
+            "attrs": {
+              "text": {
+                "text": "4.6-4.7 Confirmation"
+              },
+              "line": {
+                "stroke": "#333333"
+              }
+            },
+            "labels": [
+              {
+                "attrs": {
+                  "text": {
+                    "text": "4.6-4.7 Confirmation"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Flow",
+              "name": "4.6-4.7 Confirmation",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "isBidirectional": false,
+              "threats": [],
+              "hasOpenThreats": false
+            }
+          }
+        ]
+      }
+    ],
+    "diagramTop": 4,
+    "reviewer": "",
+    "threatTop": 0
+  }
+}
