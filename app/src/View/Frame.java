@@ -1,9 +1,12 @@
 package View;
 
+import Controller.Authorization;
 import Controller.Main;
+import Model.User;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import javax.swing.JOptionPane;
 import javax.swing.WindowConstants;
 
 public class Frame extends javax.swing.JFrame {
@@ -180,84 +183,163 @@ public class Frame extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void adminBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_adminBtnActionPerformed
+        if (!authorization.check(currentUser, "AdminHome", Authorization.ROLE_ADMIN)) {
+            denyAccess();
+            return;
+        }
+        adminHomePnl.setActingAdmin(currentUser.getUsername());
         adminHomePnl.showPnl("home");
         contentView.show(Content, "adminHomePnl");
     }//GEN-LAST:event_adminBtnActionPerformed
 
     private void managerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_managerBtnActionPerformed
+        if (!authorization.check(currentUser, "ManagerHome", Authorization.ROLE_MANAGER)) {
+            denyAccess();
+            return;
+        }
         managerHomePnl.showPnl("home");
         contentView.show(Content, "managerHomePnl");
     }//GEN-LAST:event_managerBtnActionPerformed
 
     private void staffBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_staffBtnActionPerformed
+        if (!authorization.check(currentUser, "StaffHome", Authorization.ROLE_STAFF)) {
+            denyAccess();
+            return;
+        }
         staffHomePnl.showPnl("home");
         contentView.show(Content, "staffHomePnl");
     }//GEN-LAST:event_staffBtnActionPerformed
 
     private void clientBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clientBtnActionPerformed
+        if (!authorization.check(currentUser, "ClientHome", Authorization.ROLE_CLIENT)) {
+            denyAccess();
+            return;
+        }
         clientHomePnl.showPnl("home");
         contentView.show(Content, "clientHomePnl");
     }//GEN-LAST:event_clientBtnActionPerformed
 
     private void logoutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logoutBtnActionPerformed
+        currentUser = null;
+        applyRoleVisibility();
         frameView.show(Container, "loginPnl");
     }//GEN-LAST:event_logoutBtnActionPerformed
 
     public Main main;
     public Login loginPnl = new Login();
     public Register registerPnl = new Register();
-    
+
+    /** The authenticated user for this session, or null when signed out. Authorization fails securely off this field. */
+    public User currentUser;
+    private Authorization authorization;
+
     private AdminHome adminHomePnl = new AdminHome();
     private ManagerHome managerHomePnl = new ManagerHome();
     private StaffHome staffHomePnl = new StaffHome();
     private ClientHome clientHomePnl = new ClientHome();
-    
+
     private CardLayout contentView = new CardLayout();
     private CardLayout frameView = new CardLayout();
-    
+
     public void init(Main controller){
         this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         this.setTitle("CSSECDV - SECURITY Svcs");
         this.setLocationRelativeTo(null);
-        
+
         this.main = controller;
+        this.authorization = new Authorization(main.sqlite);
         loginPnl.frame = this;
         registerPnl.frame = this;
-        
+
         adminHomePnl.init(main.sqlite);
         clientHomePnl.init(main.sqlite);
         managerHomePnl.init(main.sqlite);
         staffHomePnl.init(main.sqlite);
-        
+
         Container.setLayout(frameView);
         Container.add(loginPnl, "loginPnl");
         Container.add(registerPnl, "registerPnl");
         Container.add(HomePnl, "homePnl");
         frameView.show(Container, "loginPnl");
-        
+
         Content.setLayout(contentView);
         Content.add(adminHomePnl, "adminHomePnl");
         Content.add(managerHomePnl, "managerHomePnl");
         Content.add(staffHomePnl, "staffHomePnl");
         Content.add(clientHomePnl, "clientHomePnl");
-        
+
         this.setVisible(true);
     }
-    
-    public void mainNav(){
-        frameView.show(Container, "homePnl");
+
+    /**
+     * Authentication integration point: call this only after credentials are
+     * verified and the account is confirmed not disabled. Centralized
+     * authorization then drives which Home panel the user is directed to
+     * (checklist 2.2.4) — never trust a caller-supplied panel name instead.
+     */
+    public void onLoginSuccess(User user) {
+        this.currentUser = user;
+        mainNav();
     }
-    
+
+    public void mainNav(){
+        applyRoleVisibility();
+        frameView.show(Container, "homePnl");
+        showHomeForCurrentRole();
+    }
+
     public void loginNav(){
+        currentUser = null;
+        applyRoleVisibility();
         frameView.show(Container, "loginPnl");
     }
-    
+
     public void registerNav(){
         frameView.show(Container, "registerPnl");
     }
-    
+
     public void registerAction(String username, String password, String confpass){
         main.sqlite.addUser(username, password);
+    }
+
+    /** Shows/hides each role's navigation entry so the UI matches enforcement (checklist 2.2.2). */
+    private void applyRoleVisibility(){
+        int role = (currentUser != null) ? currentUser.getRole() : -1;
+        adminBtn.setVisible(role == Authorization.ROLE_ADMIN);
+        managerBtn.setVisible(role == Authorization.ROLE_MANAGER);
+        staffBtn.setVisible(role == Authorization.ROLE_STAFF);
+        clientBtn.setVisible(role == Authorization.ROLE_CLIENT);
+    }
+
+    /** Directs the user straight to their own Home panel; no other panel is reachable (checklist 2.2.4). */
+    private void showHomeForCurrentRole(){
+        if (currentUser == null) {
+            return;
+        }
+        switch (currentUser.getRole()) {
+            case Authorization.ROLE_ADMIN:
+                adminBtnActionPerformed(null);
+                break;
+            case Authorization.ROLE_MANAGER:
+                managerBtnActionPerformed(null);
+                break;
+            case Authorization.ROLE_STAFF:
+                staffBtnActionPerformed(null);
+                break;
+            case Authorization.ROLE_CLIENT:
+                clientBtnActionPerformed(null);
+                break;
+            default:
+                // Disabled or unrecognized role: fail securely, show nothing.
+                break;
+        }
+    }
+
+    private void denyAccess(){
+        JOptionPane.showMessageDialog(this,
+                "You do not have permission to access this page.",
+                "Access denied",
+                JOptionPane.ERROR_MESSAGE);
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

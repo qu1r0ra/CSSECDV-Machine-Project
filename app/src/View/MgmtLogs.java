@@ -8,6 +8,7 @@ package View;
 import Controller.SQLite;
 import Model.Logs;
 import java.util.ArrayList;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -18,7 +19,10 @@ public class MgmtLogs extends javax.swing.JPanel {
 
     public SQLite sqlite;
     public DefaultTableModel tableModel;
-    
+
+    /** Username of the currently signed-in Admin, set by Frame before this panel is shown; used for audit logs. */
+    public String actingAdmin = "UNKNOWN";
+
     public MgmtLogs(SQLite sqlite) {
         initComponents();
         this.sqlite = sqlite;
@@ -135,7 +139,19 @@ public class MgmtLogs extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void clearBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clearBtnActionPerformed
-        
+        int result = JOptionPane.showConfirmDialog(null,
+                "Are you sure you want to permanently clear all security logs?",
+                "CLEAR LOGS", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (result == JOptionPane.YES_OPTION) {
+            if (sqlite.clearLogs()) {
+                // Recorded after the clear so the audit trail still shows who cleared it.
+                sqlite.addLogs("LOGS_CLEARED", actingAdmin, "Security logs cleared by administrator");
+                init();
+            } else {
+                JOptionPane.showMessageDialog(null, "The request could not be completed.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }//GEN-LAST:event_clearBtnActionPerformed
 
     private void debugBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_debugBtnActionPerformed

@@ -28,22 +28,24 @@ Each row maps to the exact requirement in [checklist.md](checklist.md); short la
 | [ ] | 2.1.8 | Lockout after exactly five consecutive failures | Pending |
 | [ ] | 2.1.9 | Last-use timestamp and status | Pending |
 | [ ] | 2.1.10 | Re-authentication for critical operations | Pending |
-| [ ] | 2.2.1 | Central authorization component | Pending |
-| [ ] | 2.2.2 | Role rules in logic and UI | Pending |
-| [ ] | 2.2.3 | Authorization fails securely | Pending |
-| [ ] | 2.2.4 | Role-specific home panels | Pending |
-| [ ] | 2.3.1 | Total rejection of invalid inputs | Pending |
-| [ ] | 2.3.2 | Numeric ranges | Pending |
-| [ ] | 2.3.3 | Maximum length for every input | Pending |
-| [ ] | 2.3.4 | PreparedStatements throughout database interactions | Pending |
-| [ ] | 2.4.1 | Debug information hidden from users | Pending |
-| [ ] | 2.4.2 | Generic SQLite/Java error messages | Pending |
-| [ ] | 2.4.3 | Controller/database exception handling | Pending |
-| [ ] | 2.4.4 | Safe unprivileged fallback panel | Pending |
-| [ ] | 2.5.1 | Admin-only log access and management | Pending |
-| [ ] | 2.5.2 | Timestamped validation-failure logs | Pending |
-| [ ] | 2.5.3 | Timestamped authentication logs | Pending |
-| [ ] | 2.5.4 | Unauthorized-access logs | Pending |
+| [x] | 2.2.1 | Central authorization component | `Controller/Authorization.java`; see [security-documentation.md](security-documentation.md). Needs a demo pass once Bundle A's login calls `Frame.onLoginSuccess`. |
+| [x] | 2.2.2 | Role rules in logic and UI | `View/Frame.java` nav visibility + per-action checks; see security-documentation.md. |
+| [x] | 2.2.3 | Authorization fails securely | `Authorization.check` denies null/disabled/mismatched role by default; see security-documentation.md. |
+| [x] | 2.2.4 | Role-specific home panels | `Frame.showHomeForCurrentRole`; see security-documentation.md. |
+| [x] | 2.3.1 | Total rejection of invalid inputs | `Controller/Validator.java` (boolean-only, no sanitization) wired into `MgmtUser`. Bundle A/B still need to apply it to their own inputs. |
+| [x] | 2.3.2 | Numeric ranges | `Validator.isValidRoleCode` (1-5); applied in `MgmtUser` role edits. |
+| [x] | 2.3.3 | Maximum length for every input | `Validator` length bounds defined for username/password/product name; only wired where Bundle C has inputs (admin dialogs) so far. |
+| [x] | 2.3.4 | PreparedStatements throughout database interactions | All of `Controller/SQLite.java` rewritten; see security-documentation.md. |
+| [x] | 2.4.1 | Debug information hidden from users | `SQLite.logError`; UI never receives exception detail, console detail gated by `DEBUG_MODE`. |
+| [x] | 2.4.2 | Generic SQLite/Java error messages | Admin dialogs show "The request could not be completed." instead of exception text; see `MgmtUser`/`MgmtLogs`. |
+| [x] | 2.4.3 | Controller/database exception handling | Every `SQLite` method catches and routes through `logError`; no unhandled exception propagates to a view. |
+| [ ] | 2.4.4 | Safe unprivileged fallback panel | Partially addressed: an unauthenticated/disabled session shows no nav buttons and an empty content area. No dedicated "safe panel" view yet for unhandled runtime exceptions (e.g. a global uncaught-exception handler) — still pending. |
+| [x] | 2.5.1 | Admin-only log access and management | `MgmtLogs` only reachable via `Frame`'s `ROLE_ADMIN`-gated nav; CLEAR now functional. |
+| [ ] | 2.5.2 | Timestamped validation-failure logs | `SQLite.addLogs` infra ready; not yet called from input-validation failure sites in A/B's forms (Login/Register/MgmtProduct). |
+| [ ] | 2.5.3 | Timestamped authentication logs | Infra ready (`SQLite.addLogs`); Bundle A's login flow needs to call it on success/failure — not yet wired since Login.java is Bundle A's scope. |
+| [x] | 2.5.4 | Unauthorized-access logs | `Authorization.check` logs every denied access as `ACCESS_DENIED`. |
+
+Evidence (2026-10-28): Bundle C (centralized authorization, admin user management, audit logging, shared validation/error handling) implemented — `Controller/Authorization.java`, `Controller/Validator.java`, `Controller/PasswordUtil.java`, rewritten `Controller/SQLite.java`, role-gated `View/Frame.java`, and functional `View/MgmtUser.java`/`View/MgmtLogs.java`. Full detail and rationale in [security-documentation.md](security-documentation.md) and [ADR 0001](adr/0001-account-disable-state.md). Compiled successfully with `javac` (JDK 21) against all 20 sources; `ant` was unavailable in this environment so the full `ant -f app/build.xml clean init-db jar` + packaged-JAR run was not re-verified here — do that before relying on this as final evidence. The Swing UI launched and stayed open under a live `$DISPLAY` for a short smoke test with no exceptions, but interactive navigation/admin-action behavior was not manually clicked through.
 
 ## Required functionality and deliverables
 

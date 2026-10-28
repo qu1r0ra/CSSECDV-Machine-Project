@@ -56,6 +56,12 @@ public class AdminHome extends javax.swing.JPanel {
         contentView.show(Content, panelName);
     }
 
+    /** Lets Frame identify who is performing admin actions, for audit logging. */
+    public void setActingAdmin(String username){
+        mgmtUser.actingAdmin = username;
+        mgmtLogs.actingAdmin = username;
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
