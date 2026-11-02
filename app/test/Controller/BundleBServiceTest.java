@@ -16,6 +16,7 @@ public final class BundleBServiceTest {
         completeRoleMatrixEnforcedAtTheServiceBoundary();
         staffAddsExactPricedProductAfterBoundVerification();
         reauthenticationFailureAccountingRemainsProviderOwned();
+        unavailableReauthenticationProviderInvokesFallback();
         sessionChangeAfterVerificationRejectsTheMutation();
         purchaseConfirmationPreservesImmutableFactsAndRejectsReplay();
         acceptsMaximumFieldAndSearchBoundaries();
@@ -348,6 +349,33 @@ public final class BundleBServiceTest {
         }
     }
 
+    private static void unavailableReauthenticationProviderInvokesFallback() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            FakeSecurity security = new FakeSecurity(3, 30, "staff");
+            BundleBService service = new BundleBService(database, security);
+            service.initialize();
+            service.addProduct("Stable", "2", "3.75", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            BundleBService.CatalogProduct original = service.listCatalog().getValue().get(0);
+            security.throwOnVerification = true;
+
+            char[] addPassword = new char[] {'S', 'a', 'f', 'e', '1', '!'};
+            check(service.addProduct("Other", "1", "1.00", addPassword).getStatus() == BundleBService.Status.FAILURE,
+                    "unavailable re-authentication provider is an unrecoverable failure");
+            check(security.passwordCleared(addPassword), "provider failure clears the temporary password");
+            check(service.editProduct(original, "Changed", "1", "4.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.FAILURE, "edit stops when the re-authentication provider fails");
+            check(service.deleteProduct(original, new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.FAILURE, "delete stops when the re-authentication provider fails");
+            check(security.fallbackCount == 3, "each provider failure invokes safe fallback");
+            check(service.listCatalog().getValue().size() == 1
+                    && service.listCatalog().getValue().get(0).getName().equals("Stable"),
+                    "provider failures leave the catalog unchanged");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
     private static void acceptsMaximumFieldAndSearchBoundaries() throws Exception {
         Path database = Files.createTempFile("bundle-b-", ".db");
         try {
@@ -478,6 +506,7 @@ public final class BundleBServiceTest {
         private Integer lastVerificationTargetId;
         private String lastVerificationFingerprint;
         private boolean acceptPassword = true;
+        private boolean throwOnVerification;
         private boolean rotateSessionAfterVerification;
         private int fallbackCount;
         FakeSecurity() { actor = null; }
@@ -493,6 +522,7 @@ public final class BundleBServiceTest {
             lastVerificationOperation = operation;
             lastVerificationTargetId = targetId;
             lastVerificationFingerprint = requestFingerprint;
+            if (throwOnVerification) { throw new IllegalStateException("provider unavailable"); }
             boolean accepted = acceptPassword && current == actor && operation != null
                     && requestFingerprint != null && password.length > 0;
             if (accepted && rotateSessionAfterVerification) {

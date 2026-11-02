@@ -111,9 +111,12 @@ public final class BundleBService {
             if (!validProduct(name, stockText, priceText)) { logRejected("PRODUCT_ADD", null); return Result.failure(Status.INVALID); }
             int stock = parseInteger(stockText);
             long priceMinor = parseMinor(priceText);
-            if (!reauthenticate(actor, Operation.ADD_PRODUCT, null, name + "|" + stock + "|" + priceMinor, currentPassword)) {
+            VerificationResult verification = reauthenticate(actor, Operation.ADD_PRODUCT, null,
+                    name + "|" + stock + "|" + priceMinor, currentPassword);
+            if (verification == VerificationResult.REJECTED) {
                 return Result.failure(Status.REAUTH_REQUIRED);
             }
+            if (verification == VerificationResult.UNAVAILABLE) { return Result.failure(Status.FAILURE); }
             Actor fresh = authorized(Operation.ADD_PRODUCT, null);
             if (!sameSession(actor, fresh)) { return Result.failure(Status.DENIED); }
             try (Connection connection = open()) {
@@ -159,10 +162,12 @@ public final class BundleBService {
             if (expected == null || !validProduct(name, stockText, priceText)) { logRejected("PRODUCT_EDIT", expected); return Result.failure(Status.INVALID); }
             int stock = parseInteger(stockText);
             long priceMinor = parseMinor(priceText);
-            if (!reauthenticate(actor, Operation.EDIT_PRODUCT, Integer.valueOf(expected.id),
-                    expected.version + "|" + name + "|" + stock + "|" + priceMinor, currentPassword)) {
+            VerificationResult verification = reauthenticate(actor, Operation.EDIT_PRODUCT, Integer.valueOf(expected.id),
+                    expected.version + "|" + name + "|" + stock + "|" + priceMinor, currentPassword);
+            if (verification == VerificationResult.REJECTED) {
                 return Result.failure(Status.REAUTH_REQUIRED);
             }
+            if (verification == VerificationResult.UNAVAILABLE) { return Result.failure(Status.FAILURE); }
             Actor fresh = authorized(Operation.EDIT_PRODUCT, Integer.valueOf(expected.id));
             if (!sameSession(actor, fresh)) { return Result.failure(Status.DENIED); }
             try (Connection connection = open()) {
@@ -206,9 +211,12 @@ public final class BundleBService {
             if (expected == null || expected.id <= 0 || expected.version < 0) { logRejected("PRODUCT_DELETE", expected); return Result.failure(Status.INVALID); }
             Actor actor = authorized(Operation.DELETE_PRODUCT, Integer.valueOf(expected.id));
             if (actor == null) { return Result.failure(Status.DENIED); }
-            if (!reauthenticate(actor, Operation.DELETE_PRODUCT, Integer.valueOf(expected.id), "version:" + expected.version, currentPassword)) {
+            VerificationResult verification = reauthenticate(actor, Operation.DELETE_PRODUCT,
+                    Integer.valueOf(expected.id), "version:" + expected.version, currentPassword);
+            if (verification == VerificationResult.REJECTED) {
                 return Result.failure(Status.REAUTH_REQUIRED);
             }
+            if (verification == VerificationResult.UNAVAILABLE) { return Result.failure(Status.FAILURE); }
             Actor fresh = authorized(Operation.DELETE_PRODUCT, Integer.valueOf(expected.id));
             if (!sameSession(actor, fresh)) { return Result.failure(Status.DENIED); }
             try (Connection connection = open()) {
@@ -429,10 +437,16 @@ public final class BundleBService {
         return null;
     }
 
-    private boolean reauthenticate(Actor actor, Operation operation, Integer target, String fingerprint, char[] password) {
-        if (password == null) { return false; }
-        try { return security.verifyCurrentPassword(actor, operation, target, fingerprint, password); }
-        catch (RuntimeException ex) { return false; }
+    private VerificationResult reauthenticate(Actor actor, Operation operation, Integer target,
+            String fingerprint, char[] password) {
+        if (password == null) { return VerificationResult.REJECTED; }
+        try {
+            return security.verifyCurrentPassword(actor, operation, target, fingerprint, password)
+                    ? VerificationResult.VERIFIED : VerificationResult.REJECTED;
+        } catch (RuntimeException ex) {
+            safeFallback();
+            return VerificationResult.UNAVAILABLE;
+        }
         finally { clear(password); }
     }
 
@@ -565,6 +579,8 @@ public final class BundleBService {
             }
         }
     }
+
+    private enum VerificationResult { VERIFIED, REJECTED, UNAVAILABLE }
 
     public enum Operation { READ_CATALOG, ADD_PRODUCT, EDIT_PRODUCT, DELETE_PRODUCT, PURCHASE, READ_OWN_HISTORY, READ_ALL_HISTORY }
     public enum Status { SUCCESS, INVALID, DENIED, REAUTH_REQUIRED, NOT_FOUND, CONFLICT, FAILURE }
