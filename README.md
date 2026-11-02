@@ -7,6 +7,7 @@ Secure Web Development machine project for De La Salle University. The course pr
 - [Development guide](docs/development.md): tools, build, run, and supplied starter limitations.
 - [Specifications](docs/specifications.md) and [checklist](docs/checklist.md): cleaned conversions of the assignment handouts.
 - [Readiness TODO](docs/TODO.md): grading and submission evidence.
+- [Bundle B spec draft](docs/bundle-b-spec.md): confirmed behavior, shared dependencies and proposed testing seam; implementation tasks follow the settled spec.
 - [GitHub Issues](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues): implementation tasks and assignments.
 
 ## Submission documents

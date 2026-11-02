@@ -63,4 +63,5 @@ The October 20 class announcement identified **November 20, 2026** as the first 
 
 - [ ] Confirm our assigned demo slot and final submission deadline when announced.
 - [x] Agree on Bundle A/B/C ownership and scope; see [GitHub Issue #4](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/4). Create implementation issues with shared interfaces and dependencies before parallel work.
+- [ ] Settle and publish the [Bundle B spec draft](bundle-b-spec.md), including its testing seam and shared dependencies; then derive B-only implementation tasks and acceptance criteria for Christian's tracking and polish.
 - [ ] Resolve implementation choices such as password length limits during the later design/ticketing session; the checklist requires bounds but does not specify their numeric values.
