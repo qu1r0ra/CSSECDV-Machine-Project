@@ -24,6 +24,8 @@ public final class BundleBServiceTest {
         insufficientStockQuoteIsAudited();
         changedPriceQuoteCannotBeConfirmed();
         purchaseSnapshotInsertFailureRollsBackStockAndAudit();
+        concurrentConfirmationOfOneQuoteCreatesOnePurchase();
+        staleQuoteAfterStockChangeOrDeletionCannotBeConfirmed();
         clientHistoryIsScopedAndManagersCanSeeUnknownLegacyFacts();
         competingQuotesCannotSellTheLastUnitTwice();
         invalidInputAndAuditFailureLeaveNoPartialChanges();
@@ -510,6 +512,68 @@ public final class BundleBServiceTest {
             check(countRows(database, "SELECT COUNT(*) FROM logs WHERE event = 'PURCHASE' AND \"desc\" LIKE '%outcome=FAILURE%'") == 1,
                     "snapshot failure outcome is recorded outside its rolled-back transaction");
             check(buyerSecurity.fallbackCount == 1, "snapshot transaction failure invokes the safe unprivileged fallback");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void concurrentConfirmationOfOneQuoteCreatesOnePurchase() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            staff.initialize();
+            staff.addProduct("InFlight", "2", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            int productId = staff.listCatalog().getValue().get(0).getId();
+            final BundleBService buyer = new BundleBService(database, new FakeSecurity(2, 20, "buyer"));
+            buyer.initialize();
+            final BundleBService.PurchaseQuote quote = buyer.quotePurchase(productId, "1").getValue();
+            final java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            java.util.concurrent.Callable<BundleBService.Status> submit = new java.util.concurrent.Callable<BundleBService.Status>() {
+                public BundleBService.Status call() throws Exception {
+                    start.await();
+                    return buyer.confirmPurchase(quote).getStatus();
+                }
+            };
+            java.util.concurrent.Future<BundleBService.Status> first = pool.submit(submit);
+            java.util.concurrent.Future<BundleBService.Status> second = pool.submit(submit);
+            start.countDown();
+            List<BundleBService.Status> statuses = java.util.Arrays.asList(first.get(), second.get());
+            check(statuses.contains(BundleBService.Status.SUCCESS) && statuses.contains(BundleBService.Status.CONFLICT),
+                    "simultaneous submissions of one quote yield one purchase and one conflict");
+            check(buyer.listCatalog().getValue().get(0).getStock() == 1, "duplicate submission decrements stock once");
+            check(buyer.historyForCurrentActor("").getValue().size() == 1, "duplicate submission creates one history row");
+        } finally {
+            pool.shutdownNow();
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void staleQuoteAfterStockChangeOrDeletionCannotBeConfirmed() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            char[] password = new char[] {'S', 'a', 'f', 'e', '1', '!'};
+            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            staff.initialize();
+            staff.addProduct("Shifting", "3", "1.00", password);
+            BundleBService.CatalogProduct product = staff.listCatalog().getValue().get(0);
+            BundleBService buyer = new BundleBService(database, new FakeSecurity(2, 20, "buyer"));
+            buyer.initialize();
+            BundleBService.PurchaseQuote beforeRestock = buyer.quotePurchase(product.getId(), "1").getValue();
+            BundleBService manager = new BundleBService(database, new FakeSecurity(4, 40, "manager"));
+            manager.initialize();
+            check(manager.editProduct(product, "Shifting", "5", "1.00", password).isSuccess(),
+                    "manager changes stock after the quote");
+            check(buyer.confirmPurchase(beforeRestock).getStatus() == BundleBService.Status.CONFLICT,
+                    "quote created before a stock change cannot be confirmed");
+            check(buyer.listCatalog().getValue().get(0).getStock() == 5, "rejected stale confirmation leaves restocked stock unchanged");
+
+            BundleBService.PurchaseQuote beforeDelete = buyer.quotePurchase(product.getId(), "1").getValue();
+            BundleBService.CatalogProduct latest = manager.listCatalog().getValue().get(0);
+            check(manager.deleteProduct(latest, password).isSuccess(), "manager deletes the product after the quote");
+            check(buyer.confirmPurchase(beforeDelete).getStatus() == BundleBService.Status.CONFLICT,
+                    "quote for a deleted product cannot be confirmed");
+            check(buyer.historyForCurrentActor("").getValue().isEmpty(), "stale confirmations create no history");
         } finally {
             Files.deleteIfExists(database);
         }

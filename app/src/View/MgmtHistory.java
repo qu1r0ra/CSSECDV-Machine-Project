@@ -47,13 +47,6 @@ public class MgmtHistory extends javax.swing.JPanel {
 
     private void loadHistory(String query) {
         tableModel.setRowCount(0);
-        if (!BundleBService.isValidHistorySearchInput(query)) {
-            BundleBService.Result<List<BundleBService.PurchaseRecord>> invalid = service.historyForCurrentActor(query);
-            if (invalid.getStatus() != BundleBService.Status.DENIED) {
-                javax.swing.JOptionPane.showMessageDialog(this, invalid.getSafeMessage(), "Purchase history", javax.swing.JOptionPane.INFORMATION_MESSAGE);
-            }
-            return;
-        }
         BundleBService.Result<List<BundleBService.PurchaseRecord>> result = service.historyForCurrentActor(query);
         if (!result.isSuccess()) {
             if (result.getStatus() != BundleBService.Status.DENIED) {

@@ -248,10 +248,6 @@ public class MgmtProduct extends javax.swing.JPanel {
         Object[] message = { "How many " + product.getName() + " do you want?", quantity };
         if (JOptionPane.showConfirmDialog(this, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) { return; }
-        if (!BundleBService.isValidPurchaseQuantityInput(quantity.getText())) {
-            showResult(service.quotePurchase(product.getId(), quantity.getText()));
-            return;
-        }
         BundleBService.Result<BundleBService.PurchaseQuote> quoted = service.quotePurchase(product.getId(), quantity.getText());
         if (!quoted.isSuccess()) { showResult(quoted); return; }
         BundleBService.PurchaseQuote quote = quoted.getValue();
@@ -264,7 +260,8 @@ public class MgmtProduct extends javax.swing.JPanel {
         }
         BundleBService.Result<BundleBService.PurchaseRecord> result = service.confirmPurchase(quote);
         showResult(result);
-        if (result.isSuccess()) { init(); }
+        if (result.isSuccess() || result.getStatus() == BundleBService.Status.CONFLICT
+                || result.getStatus() == BundleBService.Status.NOT_FOUND) { init(); }
     }//GEN-LAST:event_purchaseBtnActionPerformed
 
     private void addBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addBtnActionPerformed

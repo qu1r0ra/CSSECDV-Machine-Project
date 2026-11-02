@@ -491,7 +491,7 @@ public final class BundleBService {
         } catch (RuntimeException ex) { return false; }
     }
 
-    public static boolean isValidPurchaseQuantityInput(String quantity) {
+    private static boolean isValidPurchaseQuantityInput(String quantity) {
         if (quantity == null || !UNSIGNED_INTEGER.matcher(quantity).matches()) { return false; }
         try {
             int count = parseInteger(quantity);
@@ -509,7 +509,6 @@ public final class BundleBService {
         return search != null && search.length() <= 64 && (search.length() == 0 || SEARCH.matcher(search).matches());
     }
 
-    public static boolean isValidHistorySearchInput(String search) { return validSearch(search); }
 
     private static boolean matches(PurchaseRecord record, String search) {
         return search.length() == 0 || record.buyerName.contains(search) || record.productName.contains(search);
