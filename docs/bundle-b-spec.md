@@ -1,157 +1,73 @@
-# Bundle B: products, purchases and history
+# Bundle B specification and ticket review
 
-Status: draft specification for review. Owner: Christian Joseph Bunyi. The user confirmed immutable purchase history and the catalog re-authentication policy on November 2, 2026. Implementation has not begun; implementation tasks follow the settled spec.
+The settled [Bundle B specification (Issue #6)](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6) is authoritative for B behavior, shared contracts and testing. Its live body and `ready-for-agent` label were verified after publication. The testing seam was confirmed on November 2, 2026. GitHub owns the specification; this page links it and holds the proposed ticket breakdown for review.
 
-## Problem Statement
+Owner: Christian Joseph Bunyi. These are B-only implementation tickets for his tracking and polish. Liam's A work and Roan's C work remain external dependencies under the [team handoff (Issue #4)](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/4); this proposal creates no tasks for them.
 
-The supplied application does not safely complete product management, purchasing or purchase-history access. Product controls are exposed without effective role enforcement, purchase handlers are incomplete, and history totals use current product prices. Editing or deleting a product can change the apparent past transaction or break history rendering.
+Status: **breakdown awaiting approval; no implementation tickets published and no implementation started.** After approval, publish each body below as a sub-issue of #6, establish its blocking relationship, and replace this draft with ticket links. Add only the approved execution map to #6, then verify the map against the published blockers.
 
-Christian owns Bundle B and needs a precise, verifiable description of its behavior and its dependencies on Liam's authentication work and Roan's shared security work. Allocation alone does not define these integration requirements.
+## Proposed execution map
 
-## Solution
+External integration gate: A's trusted session/current-password verification and C's current-account authorization, validation, transactional audit and safe-error/navigation interfaces must be reconciled with the actual shared implementation. B may develop against controlled doubles; integrated acceptance requires the real providers. The confirmed behavior contracts are in #6; availability is not established by historical claims in #4.
 
-Staff and Managers manage products; Clients confirm purchases and view only their own history; Managers view all purchase history. Every operation enforces the prescribed roles in application logic and the UI. Catalog mutations require fresh password verification. Ordinary purchases use the authenticated session plus explicit product/quantity/price/total confirmation.
+```text
+Batch 1: B1 [product model, shared B operations/schema integration, catalog views, catalog verification and evidence]
+Batch 2: B2 [same B operations/schema integration plus purchase/history views, verification and evidence] (blocked by B1)
+```
 
-Purchase records preserve purchase-time facts. A purchase commits its stock change, history record and success audit record together, or changes nothing. Invalid input, stale data, denied access and unexpected failures produce safe outcomes without exposing technical details.
+The two tickets share B's operation module and schema integration, so they run sequentially. Each includes its own UI, persistence, security controls, tests and rubric evidence. There is no separate test-only or documentation-only ticket.
 
-### Requirement authority
+## B1: Secure catalog browsing and product management
 
-The [assignment specification and rubric](https://github.com/qu1r0ra/CSSECDV-Machine-Project/blob/main/docs/specifications.md) and [grading checklist](https://github.com/qu1r0ra/CSSECDV-Machine-Project/blob/main/docs/checklist.md) are authoritative. Course practices guide unspecified choices and do not override required functionality. The [course audit](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/4#issuecomment-6569339054) records the lecture evidence. Numeric limits, exact-money storage, transactional auditing and the specific catalog re-authentication scope below are project choices, not invented rubric requirements.
+### Parent
 
-| B operation | Allowed roles | Additional condition |
-| --- | --- | --- |
-| Read catalog for an authorized operation | Client, Staff, Manager | Grants no purchase or edit privilege by itself |
-| Add, edit or delete product | Staff, Manager | Fresh current-password verification for each mutation |
-| Purchase | Client | Confirm product, quantity, unit price and total |
-| Read own purchase history | Client | Query is scoped to the authenticated buyer |
-| Read all purchase history | Manager | Includes all buyers; grants no purchase privilege |
+[Bundle B specification #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6)
 
-Unregistered, Disabled and Admin have no B access. Staff cannot read purchase history. Admin is not a superadmin. Missing or stale identities and unsupported role values are denied.
+### What to build
 
-## User Stories
+Clients can browse the catalog, and Staff/Managers can add, edit and delete products through the same protected B operations used by Swing. Every mutation requires fresh current-password verification. Deliver a working catalog slice with exact prices, preserved data, safe failures and verifiable security behavior.
 
-1. As a Staff member, I want to add a valid product so that Clients can purchase available stock.
-2. As a Manager, I want the same catalog-management capabilities as Staff so that I can manage the business catalog.
-3. As a Staff member or Manager, I want to update a selected product so that its name, price and stock reflect current availability.
-4. As a Staff member or Manager, I want to delete a selected product so that it is no longer offered for purchase.
-5. As a catalog operator, I want to verify my current password before each add/edit/delete so that temporary access to my session does not authorize catalog changes.
-6. As a catalog operator, I want cancelling or failing that verification to leave the catalog unchanged so that an unapproved mutation cannot slip through.
-7. As a Client, I want to see the catalog without management controls so that I can choose an available product.
-8. As a Client, I want to confirm the product, quantity, unit price and total so that I understand the purchase before committing it.
-9. As a Client, I want to cancel the confirmation without changing stock or history so that reviewing a purchase has no side effects.
-10. As a Client, I want a changed price or stale product to require refresh/reconfirmation so that I do not unknowingly accept new terms.
-11. As a Client, I want a successful purchase to reduce stock and create exactly one purchase record so that the catalog and history agree.
-12. As a Client competing for the last available unit, I want only a valid in-stock purchase to succeed so that stock cannot become negative.
-13. As a Client, I want only my own purchase history returned so that another buyer's information remains private.
-14. As a Manager, I want to view all buyers' purchase history so that I can review completed transactions.
-15. As a buyer or Manager, I want purchase-time product details and totals to remain accurate after catalog edits/deletion so that the history remains trustworthy.
-16. As a user, I want invalid or oversized input rejected entirely so that malformed requests cannot be converted into unintended valid actions.
-17. As a user, I want exact decimal prices and totals so that binary rounding does not change displayed or stored amounts.
-18. As a user, I want stale selection, unavailable stock and duplicate in-flight submission handled safely so that I do not affect the wrong product or buy twice accidentally.
-19. As a user whose account is disabled or session ends, I want protected operations to stop immediately so that an old screen cannot preserve access.
-20. As a user, I want understandable, generic failure messages and a safe fallback after unrecoverable errors so that the application remains secure and usable.
-21. As an Administrator, I want B's required security and mutation events recorded through the protected audit mechanism so that activity can be investigated without granting me B privileges.
-22. As a maintainer, I want legacy records preserved without fabricated prices or unsafe buyer associations so that an upgrade does not create false history or disclose data.
-23. As a Bundle B owner, I want behavior-level verification and demo evidence so that I can double-check my implementation and polish it against the rubric.
-24. As a teammate, I want explicit shared contracts and integration ownership so that B can connect to A/C without competing security implementations or overlapping rewrites.
+### Acceptance criteria
 
-## Implementation Decisions
+- [ ] Reconcile the consumed A/C interfaces and shared edit ownership before integration. Use trusted stable identity/session generation and current account state; B does not store credentials, select its own actor or duplicate shared security policy.
+- [ ] Both direct operation calls and Swing enforce the parent's role table. Client browsing grants no management privileges; Unregistered, Disabled, Admin, missing/stale identities and unsupported roles are denied B access.
+- [ ] Staff and Managers can add, edit and delete the intended product by stable identity. Duplicate names, missing selections, deleted products and stale state leave the catalog unchanged and refresh or explain the conflict safely.
+- [ ] Each mutation binds fresh masked current-password verification to the session, operation, target and input. Failure, cancellation, changed input/target, logout, account disabling/deletion or lost role prevents the write. Temporary password buffers are cleared; A owns authentication logging/failure accounting, including preservation of the exact five-failed-login rule.
+- [ ] Enforce all parent field/range/raw-length rules at the operation boundary and supplement them in the UI. Reject the entire invalid request without trimming, truncating, cleaning or rounding. Valid boundary values and exact money round-trip correctly with checked arithmetic.
+- [ ] Every B database interaction uses PreparedStatements. Product/schema compatibility changes preserve the original fixture and existing working records; repeated upgrades do not lose or duplicate data. Existing history remains preserved for the subsequent purchase/history slice.
+- [ ] Each successful catalog mutation and its protected success audit record commit together. Validation, authorization and verification failures use shared timestamped logging without secrets/raw invalid input or duplicate events. Audit/storage failure leaves no committed partial mutation; failure logging cannot recurse indefinitely.
+- [ ] Expected conflicts keep the application usable with generic feedback. Unrecoverable failures invalidate protected state and use the safe unprivileged fallback without exposing SQL/Java diagnostics.
+- [ ] Automated checks exercise the public B operations against real temporary SQLite for the complete catalog role matrix, direct-call bypass attempts, validation boundaries/exact money, stale state, re-authentication/session changes and mutation/audit rollback. Controlled doubles induce failures; repeat the relevant checks with actual A/C providers before integrated acceptance.
+- [ ] A manual Swing pass verifies browsing, management visibility, masked verification, cancellation, refreshed catalog state and safe messages/navigation. Record the executed scenarios and successful Ant build.
+- [ ] Update the catalog's security documentation, ACL entries and demo cases to match implemented behavior, separating vulnerability from impact and naming exact controls. Record evidence and remaining dependencies without claiming unfinished shared criteria are complete.
 
-### B module and interface
+### Blocked by
 
-Expose B's behavior through one product/purchase module: catalog listing, add/edit/delete, confirmed purchase, own history and Manager history. Swing handlers collect input and display outcomes; the module resolves the trusted actor and performs centralized authorization, validation and transaction handling. Keep low-level product/history database operations internal to this path so a public unguarded write cannot bypass the checks.
+No earlier B ticket. Actual A/C provider integration and agreed shared edit ownership are external gates to integrated acceptance, as described in the execution map and parent spec.
 
-B callers do not supply authoritative buyer identity, role, timestamp, final charged price or allowed-role lists. Select products by stable ID rather than editable name or table-row position. Use an expected version or equivalent state check so a stale edit, deletion or purchase cannot silently act on changed state.
+## B2: Atomic purchases and authorized immutable history
 
-### Interfaces consumed from A/C
+### Parent
 
-The following are required behavior contracts, not claims that particular Java declarations already exist. Concrete declarations must be reconciled with the actual shared implementation before callers are written. Historical interface names in [Issue #4](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/4) remain unverified.
+[Bundle B specification #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6)
 
-| Provider | Interface B consumes | Invariants and failure behavior |
-| --- | --- | --- |
-| A: session | Trusted stable user identity and session generation | No password/hash in the exposed identity. Logout invalidates the session. B cannot choose the current actor. |
-| C: authorization | Operation plus trusted identity and resource context | Central role policy checks current account state and ownership. Missing, disabled, deleted, stale or unauthorized identities fail closed. |
-| A: re-authentication | Current credentials checked for one pending catalog mutation | Mask entry; reject failure/cancellation; verify immediately before execution; clear temporary password buffers. No reusable UI boolean granting privilege. |
-| C: validation | Shared reject-by-default rules accepting B field constraints | UI checks supplement operation-level checks. Invalid requests are rejected wholly, without cleaning, trimming, truncating or rounding them into acceptance. |
-| C: audit | Trusted actor, operation, target, outcome and application timestamp | Protected Admin-only access; no credentials, hashes or raw invalid input. Success events can join the mutation's transaction. |
-| C: errors/navigation | Safe outcomes and unprivileged fallback | Ordinary rejection/cancellation leaves data unchanged. Unrecoverable errors invalidate protected state and route to safe fallback, without raw SQL/Java details. |
+### What to build
 
-Re-authentication is bound to the current session, pending operation, target and input. Changing any of these invalidates the pending approval. Recheck authorization and relevant product state before writing. A owns credential verification and authentication failure accounting; B does not add a credential store or counter. Integration must preserve the checklist's exact five-consecutive-failed-login behavior. Re-authentication failures reject the operation and are logged through A; any shared-policy mismatch must be resolved before claiming integrated compliance.
+Clients confirm purchases and view their own completed purchases; Managers view all buyers' history. Purchases update stock, preserve purchase-time facts and record success atomically. History remains accurate after catalog edits/deletion, and legacy data remains preserved with honest limits.
 
-### Field and money rules
+### Acceptance criteria
 
-These reversible defaults fill unspecified handout values. Enforce the same limits at the B operation entry, even when called without the UI.
+- [ ] Use B1's protected B operations, stable product identity, exact-money rules and shared A/C integration. Clients alone may purchase or read their own history; Managers alone may read all history. Other prescribed roles and invalid/stale sessions fail closed in both logic and UI.
+- [ ] Show the current product, quantity, unit price and exact total before purchase. Cancellation changes nothing. Invalid/oversized quantities and unavailable stock are rejected wholly; changed price or relevant product state requires fresh confirmation. Repeated submission of the same in-flight confirmation cannot create a duplicate purchase.
+- [ ] Revalidate current identity/account state, role, selected product state and stock at execution. In a single transaction, conditionally decrement stock, insert one immutable purchase snapshot and append its protected success audit event. Any failed history/audit write rolls back every effect; competing requests for the last unit yield one success and nonnegative stock.
+- [ ] Each new record retains stable buyer/product identity, purchase-time display names, unit price, quantity and application-generated UTC time. Totals derive from those facts; subsequent buyer/product display changes or product deletion cannot rewrite completed facts or remove history through a cascade.
+- [ ] Own-history queries constrain rows by the trusted buyer before reaching the UI. Clients cannot request another buyer or receive all rows for UI filtering. Manager history is separately authorized and grants no purchase privilege.
+- [ ] Preserve existing working data and the original fixture. Display unknown legacy historical prices/totals as unavailable; never substitute current prices. Expose legacy rows with uncertain buyer ownership only to authorized Managers. Repeated compatibility upgrades retain rows without duplication or fabricated facts.
+- [ ] All database access uses PreparedStatements and the parent's validation, timestamped logging, generic errors and safe-fallback contracts. Failure or cancellation cannot appear successful; ordinary conflicts allow correction and unrecoverable failures remove protected access.
+- [ ] Automated checks use the public B seam and real temporary SQLite to verify role/ownership isolation, validation/exact totals, stale confirmation, duplicate submission, last-unit competition, history/audit rollback, immutable history after rename/reprice/delete and repeatable legacy compatibility. Exercise actual A/C integration before acceptance; doubles alone do not establish shared compliance.
+- [ ] A manual Swing pass verifies Client purchase/own-history and Manager all-history, cancellation, reconfirmation, refreshed stock/history, denied roles and safe failure navigation. Record observed results and a successful Ant build.
+- [ ] Complete the B purchase/history security documentation, ACL entries and demo cases. Prepare complete demo purchases through the implemented flow; with A's compliant demo accounts and C's packaging, verify standalone launch and B scenarios from a separate distribution directory. Record B evidence and any remaining team-wide gaps without claiming global compliance.
 
-| Field | Accepted value | Maximum raw length |
-| --- | --- | --- |
-| Product name | 1-64 ASCII letters/digits; retain the starter's unique-name rule | 64 |
-| Stock | Integer 0-1,000,000 | 7 |
-| Unit price | Decimal 0.01-1,000,000.00; at most two fractional digits | 10 |
-| Purchase quantity | Integer 1-1,000,000 and no greater than available stock | 7 |
+### Blocked by
 
-Numeric input uses unsigned decimal digits, with a decimal point permitted only for price. Reject signs, separators, exponents, surrounding whitespace, non-finite numbers, excess precision and overflow. A supplies password length/policy rules for its verification interface. Validate stable IDs and all business constraints as well as field syntax.
-
-Store monetary values as 64-bit integer minor units; parse decimal input exactly and use checked arithmetic for totals. Do not calculate money with binary floats or silently round invalid precision. Generate unambiguous UTC purchase timestamps inside the application; audit events use the same clock convention.
-
-### Catalog and purchase state
-
-Each catalog mutation requires current role authorization, fresh credential verification and valid unchanged target/input. Cancellation, duplicate name, no selection, unavailable product, stale state or verification failure produces no catalog change.
-
-A Client purchase starts with a confirmation based on the selected product's current name, quantity, unit price and total. At execution, revalidate the account, role, product state and available stock. In one database transaction, conditionally decrement stock, insert one immutable purchase snapshot and append the success audit record. Any failure rolls all three effects back. Two competing requests for the last unit cannot both succeed.
-
-A changed price or other relevant product state requires fresh confirmation. Prevent a second submission of the same in-flight confirmation; a deliberate later purchase uses a new confirmation. A failed request or cancelled confirmation must never appear successful.
-
-### History and schema compatibility
-
-History stores purchase-time stable buyer/product identity, buyer/product display names, unit price, quantity and timestamp. Read totals from those immutable facts. Do not join to the live catalog to reconstruct the price or require the product still to exist. Catalog deletion must not cascade into history deletion.
-
-Scope own-history queries by trusted buyer ID before rows reach the UI. Manager history is a separately authorized operation. Client requests cannot substitute another buyer, and fetching every buyer's history for UI filtering is insufficient.
-
-Preserve the original course fixture and existing working data during schema upgrades; no silent reset. Legacy history has no historical unit price: retain that fact as unavailable rather than using today's price or inventing totals. Only associate a legacy row with a Client when ownership can be established safely; otherwise expose it solely through authorized Manager history. Upgrades must be repeatable without losing or duplicating data. Prepared demo purchases come through the completed purchase flow and have complete snapshots.
-
-### Logging and failures
-
-Use PreparedStatements for every B database interaction. Record required validation failures, authorization denials and authentication outcomes through the shared mechanisms. Also record product mutation and purchase outcomes as the course-informed audit coverage; avoid duplicate events where A/C already records them.
-
-Mutation success and its success audit record commit together. Audit failure prevents the mutation from being reported or committed as successful. Record failure events outside the rolled-back transaction when storage remains available; unavailable logging must not recursively generate unbounded failures. Generic user feedback must not reveal SQL, stack traces, credentials or internal diagnostics. Expected validation/stock conflicts leave the user able to correct the request; unrecoverable errors invoke the safe unprivileged fallback.
-
-### Integration ownership and evidence
-
-B owns product/history models, operations, views, schema requirements and their checks. C integrates shared database connection/error/audit changes and role navigation; A supplies authenticated-session and re-authentication hooks. B supplies the corresponding wiring rather than rewriting shared modules independently. Agree on shared edit ownership before parallel implementation.
-
-Each B feature supplies its security-documentation entry with a clear vulnerability/impact distinction and exact implemented control, its ACL row and its demo scenarios. B owns its own verification and polish. Compliant demo accounts come from A; C integrates final packaging. External A/C deliverables are dependencies, not implementation tasks assigned by this spec.
-
-## Testing Decisions
-
-**Proposed seam for confirmation:** exercise the public B product/purchase module used by Swing callers, with a real temporary SQLite database. This is the highest practical automated seam that can verify role checks, persistence and transaction outcomes together. The starter exposes low-level database calls directly from views; no existing automated behavioral test suite was found. Introducing this one B module is necessary to test complete operations independently of Swing dialogs.
-
-Prefer observable outcomes: returned history, stock, purchase records, allowed/denied operations and audit events. Avoid tests of private helpers or SQL strings. Use controlled A/C doubles only to induce session changes, verification failures and storage failures; those checks do not establish real shared-module compliance. Repeat the important scenarios with the actual A/C integration before acceptance.
-
-| Observable behavior | Required verification |
-| --- | --- |
-| Role and ownership rules | Exercise every B operation for all prescribed roles; attempt cross-buyer reads and direct calls bypassing UI visibility. |
-| Session and re-authentication | Wrong password, cancellation, changed target/input, logout, disabled/deleted account and changed role prevent mutation. Password entry is masked in the manual UI pass. |
-| Input and exact money | Check valid endpoints and immediately invalid values for every bound, malformed/oversized fields, duplicate names, excess precision and exact totals. |
-| Stale data and confirmation | A changed price requires reconfirmation; stale edit/delete and missing selections cannot affect another product. |
-| Atomicity and competing purchases | Competing requests for the last unit yield one success; failed history/audit writes leave no stock/history/success-event partial state. |
-| Stable history | Renaming, repricing or deleting the product leaves completed purchase facts and totals unchanged. |
-| Legacy data | Upgrades preserve rows, do not fabricate prices and do not expose uncertain buyer associations to a Client; repeated upgrade is safe. |
-| User-visible failures | Manual Swing pass verifies confirmations, cancellation, role visibility, refreshed stock/history, generic messages and unrecoverable safe fallback. |
-| Delivery and rubric evidence | Ant build; standalone launch from a separate distribution directory using deliberately prepared secure data; B documentation, ACL and live-demo cases match executed behavior. |
-
-Checklist coverage: protected access and secure failure (2.1.1-2.1.2), masked re-authentication and critical operations (2.1.7, 2.1.10), centralized authorization and role/UI behavior (2.2.1-2.2.4), validation and SQL (2.3.1-2.3.4), errors/fallback (2.4.1-2.4.4), and B's contributions to authentication/validation/denial logs (2.5.2-2.5.4). B verifies that it cannot obtain Admin-only log access (2.5.1); C implements that feature. This mapping does not claim global completion of shared criteria.
-
-## Out of Scope
-
-- A's authentication/credential implementation, C's authorization/Admin/log-management implementation, and assigning new implementation tasks to either teammate.
-- B access for Admin, Staff history access, or purchasing by Staff/Manager; these would conflict with the prescribed role boundaries.
-- Payments, shipping, refunds, order fulfillment, multi-currency support, tax calculations or editable completed purchase records.
-- Browser cookies, HTTPS infrastructure or a web rewrite of the Swing starter.
-- Guessing missing historic prices, silently resetting existing data or claiming security compliance from starter/template files.
-- Implementation task breakdown, code changes or application test execution before the specification and testing seam are settled.
-
-## Further Notes
-
-The general project setup is complete; the remaining planning work is to confirm the proposed test seam, publish this spec to the project tracker, then derive B-only implementation tasks and acceptance criteria. No task count or execution map is approved by this spec draft.
-
-The two confirmed product decisions do not require an ADR under the current criteria: immutable purchase facts are expected behavior, and the re-authentication policy is reversible. The rationale belongs here without a separate ADR.
+B1: Secure catalog browsing and product management. It supplies the catalog behavior, stable identity/exact money and shared B operations/schema area used by this slice. The actual A/C integration and final account/packaging dependencies also remain external acceptance gates.
