@@ -62,5 +62,5 @@ Optional compatibility follow-up: the specification asks the team to try the fin
 The October 20 class announcement identified **November 20, 2026** as the first demo date, with November 24 or 27 mentioned for later sessions. Our assigned slot and a common final code-submission deadline are not established by these handouts. Treat the earliest date as a preparation target until the assigned schedule is confirmed. The same announcement said no PowerPoint was required.
 
 - [ ] Confirm our assigned demo slot and final submission deadline when announced.
-- [ ] Agree on task dissemination/dibs and create implementation issues.
+- [x] Agree on Bundle A/B/C ownership; see [GitHub Issue #4](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/4). Define and create the remaining implementation issues before starting those bundles.
 - [ ] Resolve implementation choices such as password length limits during the later design/ticketing session; the checklist requires bounds but does not specify their numeric values.
