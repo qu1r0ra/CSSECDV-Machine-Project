@@ -234,8 +234,7 @@ public class MgmtUser extends javax.swing.JPanel {
             int result = JOptionPane.showConfirmDialog(null, message, "CHANGE PASSWORD", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
             
             if (result == JOptionPane.OK_OPTION) {
-                System.out.println(password.getText());
-                System.out.println(confpass.getText());
+                // Entered passwords are not printed. Persisting a changed password belongs to Bundle A's credential flow.
             }
         }
     }//GEN-LAST:event_chgpassBtnActionPerformed
