@@ -10,7 +10,7 @@ Secure Web Development machine project for De La Salle University. The course pr
 - [Bundle B specification and implementation plan](docs/bundle-b-spec.md): settled spec, confirmed testing seam and approved B-only tickets with acceptance criteria.
 - [GitHub Issues](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues): implementation tasks and assignments.
 
-Bundle B catalog, purchase, history, and service-level SQLite checks are being implemented under [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6), with approved tickets [#7](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/7) and [#8](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/8). Run the B behavior checks with `ant -f app/build.xml test-bundle-b`. Actual identity/session and authorization provider integration remains tracked by [issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9).
+Bundle B catalog, purchase, and history are merged to `main` in [PR #10](https://github.com/qu1r0ra/CSSECDV-Machine-Project/pull/10) under [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6); tickets [#7](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/7) and [#8](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/8) are closed. Run the B service checks with `ant -f app/build.xml test-bundle-b`. Actual identity/session and authorization provider integration remains tracked by [issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9); until it lands, the app's adapter denies all B operations.
 
 ## Submission documents
 
