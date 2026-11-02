@@ -60,7 +60,7 @@ The course archive **MP - Security Svcs.zip** contains this Java/Swing MVC appli
 - Login navigates home without checking credentials; role navigation is unrestricted.
 - Registration ignores password confirmation. Password fields and the user table expose plaintext values.
 - Many user/product actions print values or have empty handlers instead of completing the operation.
-- Database methods concatenate SQL input. Schema/bootstrap calls in `Main.java` are commented out.
+- Database methods concatenate SQL input as supplied. `SQLite.addUser` was parameterized in PR #12; `addHistory`, `addLogs`, `addProduct`, `removeUser`, and `getProduct(name)` still concatenate until Bundle C lands. Schema/bootstrap calls in `Main.java` are commented out.
 - Security logging, failure handling, and permission enforcement need implementation against the checklist.
 
 The import preserves all supplied Java and `.form` files unchanged. It retains the shared NetBeans project configuration and one JDBC JAR. It omits compiled output, private IDE settings, duplicate dependencies, platform metadata, and unused bundled SQLite executables.

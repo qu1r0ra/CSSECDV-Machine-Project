@@ -9,4 +9,4 @@ The approved B-only implementation tickets are:
 
 Both are sub-issues of #6, assigned to Christian's account, with implementation acceptance criteria, behavioral tests, manual checks and rubric evidence included. A/C provider integration remains an acceptance dependency under the [team handoff #4](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/4); this plan creates no tasks for Liam or Roan.
 
-Planning and ticket publication are complete. Application implementation and security-compliance evidence remain pending; track verified results in [submission readiness](TODO.md).
+Planning, ticket publication, and Bundle B implementation are done; the implementation landed in [PR #10](https://github.com/qu1r0ra/CSSECDV-Machine-Project/pull/10). A/C integration in [#9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9) and project-wide security-compliance evidence remain pending; track verified results in [submission readiness](TODO.md).
