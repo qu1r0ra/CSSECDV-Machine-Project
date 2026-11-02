@@ -5,10 +5,8 @@
  */
 package View;
 
-import Controller.SQLite;
-import Model.History;
-import Model.Product;
-import java.util.ArrayList;
+import Controller.BundleBService;
+import java.util.List;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
@@ -19,13 +17,14 @@ import javax.swing.table.DefaultTableModel;
  */
 public class MgmtHistory extends javax.swing.JPanel {
 
-    public SQLite sqlite;
+    private final BundleBService service;
     public DefaultTableModel tableModel;
     
-    public MgmtHistory(SQLite sqlite) {
+    public MgmtHistory(BundleBService service) {
         initComponents();
-        this.sqlite = sqlite;
+        this.service = service;
         tableModel = (DefaultTableModel)table.getModel();
+        tableModel.setRowCount(0);
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
         javax.swing.table.DefaultTableCellRenderer rightAlign = new javax.swing.table.DefaultTableCellRenderer();
         rightAlign.setHorizontalAlignment(javax.swing.JLabel.RIGHT);
@@ -40,23 +39,24 @@ public class MgmtHistory extends javax.swing.JPanel {
     }
 
     public void init(){
-//      CLEAR TABLE
-        for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
-            tableModel.removeRow(0);
+        boolean allowed = service.canViewHistory();
+        searchBtn.setVisible(allowed);
+        reloadBtn.setVisible(allowed);
+        loadHistory("");
+    }
+
+    private void loadHistory(String query) {
+        tableModel.setRowCount(0);
+        BundleBService.Result<List<BundleBService.PurchaseRecord>> result = service.historyForCurrentActor(query);
+        if (!result.isSuccess()) {
+            if (result.getStatus() != BundleBService.Status.DENIED) {
+                javax.swing.JOptionPane.showMessageDialog(this, result.getSafeMessage(), "Purchase history", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            }
+            return;
         }
-        
-//      LOAD CONTENTS
-        ArrayList<History> history = sqlite.getHistory();
-        for(int nCtr = 0; nCtr < history.size(); nCtr++){
-            Product product = sqlite.getProduct(history.get(nCtr).getName());
-            tableModel.addRow(new Object[]{
-                history.get(nCtr).getUsername(), 
-                history.get(nCtr).getName(), 
-                history.get(nCtr).getStock(), 
-                product.getPrice(), 
-                product.getPrice() * history.get(nCtr).getStock(), 
-                history.get(nCtr).getTimestamp()
-            });
+        for (BundleBService.PurchaseRecord record : result.getValue()) {
+            tableModel.addRow(new Object[] { record.getBuyerName(), record.getProductName(), record.getQuantity(),
+                    record.getUnitPriceDisplay(), record.getTotalDisplay(), record.getTimestamp() });
         }
     }
     
@@ -91,7 +91,7 @@ public class MgmtHistory extends javax.swing.JPanel {
                 {null, null, null, null, null, null}
             },
             new String [] {
-                "Username", "Name", "Stock", "Price", "Total", "Timestamp"
+                "Buyer", "Product", "Quantity", "Unit price", "Total", "Purchased at"
             }
         ) {
             boolean[] canEdit = new boolean [] {
@@ -159,7 +159,7 @@ public class MgmtHistory extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void searchBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchBtnActionPerformed
-        JTextField searchFld = new JTextField("0");
+        JTextField searchFld = new JTextField("");
         designer(searchFld, "SEARCH USERNAME OR PRODUCT");
 
         Object[] message = {
@@ -169,30 +169,7 @@ public class MgmtHistory extends javax.swing.JPanel {
         int result = JOptionPane.showConfirmDialog(null, message, "SEARCH HISTORY", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
 
         if (result == JOptionPane.OK_OPTION) {
-//          CLEAR TABLE
-            for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
-                tableModel.removeRow(0);
-            }
-
-//          LOAD CONTENTS
-            ArrayList<History> history = sqlite.getHistory();
-            for(int nCtr = 0; nCtr < history.size(); nCtr++){
-                if(searchFld.getText().contains(history.get(nCtr).getUsername()) || 
-                   history.get(nCtr).getUsername().contains(searchFld.getText()) || 
-                   searchFld.getText().contains(history.get(nCtr).getName()) || 
-                   history.get(nCtr).getName().contains(searchFld.getText())){
-                
-                    Product product = sqlite.getProduct(history.get(nCtr).getName());
-                    tableModel.addRow(new Object[]{
-                        history.get(nCtr).getUsername(), 
-                        history.get(nCtr).getName(), 
-                        history.get(nCtr).getStock(), 
-                        product.getPrice(), 
-                        product.getPrice() * history.get(nCtr).getStock(), 
-                        history.get(nCtr).getTimestamp()
-                    });
-                }
-            }
+            loadHistory(searchFld.getText());
         }
     }//GEN-LAST:event_searchBtnActionPerformed
 

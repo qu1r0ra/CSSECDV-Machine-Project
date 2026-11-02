@@ -27,7 +27,7 @@ public class SQLite {
         }
     }
     
-    public void createHistoryTable() {
+    void createHistoryTable() {
         String sql = "CREATE TABLE IF NOT EXISTS history (\n"
             + " id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
             + " username TEXT NOT NULL,\n"
@@ -63,7 +63,7 @@ public class SQLite {
         }
     }
      
-    public void createProductTable() {
+    void createProductTable() {
         String sql = "CREATE TABLE IF NOT EXISTS product (\n"
             + " id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
             + " name TEXT NOT NULL UNIQUE,\n"
@@ -98,7 +98,7 @@ public class SQLite {
         }
     }
     
-    public void dropHistoryTable() {
+    void dropHistoryTable() {
         String sql = "DROP TABLE IF EXISTS history;";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -122,7 +122,7 @@ public class SQLite {
         }
     }
     
-    public void dropProductTable() {
+    void dropProductTable() {
         String sql = "DROP TABLE IF EXISTS product;";
 
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -146,7 +146,7 @@ public class SQLite {
         }
     }
     
-    public void addHistory(String username, String name, int stock, String timestamp) {
+    void addHistory(String username, String name, int stock, String timestamp) {
         String sql = "INSERT INTO history(username,name,stock,timestamp) VALUES('" + username + "','" + name + "','" + stock + "','" + timestamp + "')";
         
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -168,7 +168,7 @@ public class SQLite {
         }
     }
     
-    public void addProduct(String name, int stock, double price) {
+    void addProduct(String name, int stock, double price) {
         String sql = "INSERT INTO product(name,stock,price) VALUES('" + name + "','" + stock + "','" + price + "')";
         
         try (Connection conn = DriverManager.getConnection(driverURL);
@@ -198,7 +198,7 @@ public class SQLite {
     }
     
     
-    public ArrayList<History> getHistory(){
+    ArrayList<History> getHistory(){
         String sql = "SELECT id, username, name, stock, timestamp FROM history";
         ArrayList<History> histories = new ArrayList<History>();
         
@@ -240,7 +240,7 @@ public class SQLite {
         return logs;
     }
     
-    public ArrayList<Product> getProduct(){
+    ArrayList<Product> getProduct(){
         String sql = "SELECT id, name, stock, price FROM product";
         ArrayList<Product> products = new ArrayList<Product>();
         
@@ -303,7 +303,7 @@ public class SQLite {
         }
     }
     
-    public Product getProduct(String name){
+    Product getProduct(String name){
         String sql = "SELECT name, stock, price FROM product WHERE name='" + name + "';";
         Product product = null;
         try (Connection conn = DriverManager.getConnection(driverURL);

@@ -7,6 +7,7 @@ import Model.Product;
 import Model.User;
 import View.Frame;
 import java.sql.Timestamp;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -15,6 +16,8 @@ import java.util.Date;
 public class Main {
     
     public SQLite sqlite;
+    public BundleBService bundleBService;
+    private Frame frame;
     
     public static void main(String[] args) {
         new Main().init();
@@ -23,6 +26,15 @@ public class Main {
     public void init(){
         // Initialize a driver object
         sqlite = new SQLite();
+        bundleBService = new BundleBService(Paths.get("database.db"), new BundleBService.SecurityGateway() {
+            public BundleBService.Actor currentActor() { return null; }
+            public boolean authorize(BundleBService.Actor actor, BundleBService.Operation operation, Integer targetId) { return false; }
+            public boolean verifyCurrentPassword(BundleBService.Actor actor, BundleBService.Operation operation,
+                    Integer targetId, String requestFingerprint, char[] password) { return false; }
+            public void onUnrecoverableFailure() { if (frame != null) { frame.showSafeUnprivilegedState(); } }
+        });
+        try { bundleBService.initialize(); }
+        catch (IllegalStateException ignored) { /* B remains unavailable and all protected actions fail closed. */ }
 
 //        // Create a database
 //        sqlite.createNewDatabase();
@@ -101,7 +113,7 @@ public class Main {
 //        }
         
         // Initialize User Interface
-        Frame frame = new Frame();
+        frame = new Frame();
         frame.init(this);
     }
     

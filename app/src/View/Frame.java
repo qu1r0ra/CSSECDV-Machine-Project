@@ -224,10 +224,10 @@ public class Frame extends javax.swing.JFrame {
         loginPnl.frame = this;
         registerPnl.frame = this;
         
-        adminHomePnl.init(main.sqlite);
-        clientHomePnl.init(main.sqlite);
-        managerHomePnl.init(main.sqlite);
-        staffHomePnl.init(main.sqlite);
+        adminHomePnl.init(main.sqlite, main.bundleBService);
+        clientHomePnl.init(main.sqlite, main.bundleBService);
+        managerHomePnl.init(main.sqlite, main.bundleBService);
+        staffHomePnl.init(main.sqlite, main.bundleBService);
         
         Container.setLayout(frameView);
         Container.add(loginPnl, "loginPnl");
@@ -254,6 +254,10 @@ public class Frame extends javax.swing.JFrame {
     
     public void registerNav(){
         frameView.show(Container, "registerPnl");
+    }
+
+    public void showSafeUnprivilegedState(){
+        frameView.show(Container, "loginPnl");
     }
     
     public void registerAction(String username, String password, String confpass){
