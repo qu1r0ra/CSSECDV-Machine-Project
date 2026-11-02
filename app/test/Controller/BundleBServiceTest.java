@@ -20,6 +20,10 @@ public final class BundleBServiceTest {
         sessionChangeAfterVerificationRejectsTheMutation();
         purchaseConfirmationPreservesImmutableFactsAndRejectsReplay();
         acceptsMaximumFieldAndSearchBoundaries();
+        leadingZeroPriceIsAcceptedAsExactMinorUnits();
+        insufficientStockQuoteIsAudited();
+        changedPriceQuoteCannotBeConfirmed();
+        purchaseSnapshotInsertFailureRollsBackStockAndAudit();
         clientHistoryIsScopedAndManagersCanSeeUnknownLegacyFacts();
         competingQuotesCannotSellTheLastUnitTwice();
         invalidInputAndAuditFailureLeaveNoPartialChanges();
@@ -416,6 +420,96 @@ public final class BundleBServiceTest {
                     "eight-character quantity is rejected even when its number is small");
             check(buyer.quotePurchase(productId, "0").getStatus() == BundleBService.Status.INVALID,
                     "zero purchase quantity is rejected");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void leadingZeroPriceIsAcceptedAsExactMinorUnits() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            staff.initialize();
+            BundleBService.Result<BundleBService.CatalogProduct> added = staff.addProduct("LeadZero", "1", "00000001.5",
+                    new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            check(added.isSuccess(), "leading-zero price within the ten-character field is accepted");
+            check(added.getValue().getPriceMinor().longValue() == 150L, "leading-zero price keeps exact minor units");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void insufficientStockQuoteIsAudited() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            staff.initialize();
+            staff.addProduct("Scarce", "1", "2.00", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            int productId = staff.listCatalog().getValue().get(0).getId();
+            BundleBService buyer = new BundleBService(database, new FakeSecurity(2, 20, "buyer"));
+            buyer.initialize();
+            check(buyer.quotePurchase(productId, "2").getStatus() == BundleBService.Status.CONFLICT,
+                    "quantity beyond available stock is rejected");
+            check(buyer.listCatalog().getValue().get(0).getStock() == 1, "rejected quote leaves stock unchanged");
+            check(buyer.historyForCurrentActor("").getValue().isEmpty(), "rejected quote creates no history");
+            check(countRows(database, "SELECT COUNT(*) FROM logs WHERE username = 'buyer' AND \"desc\" LIKE '%outcome=REJECTED%'") == 1,
+                    "insufficient-stock quote is audited as a rejected purchase attempt");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void changedPriceQuoteCannotBeConfirmed() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            staff.initialize();
+            staff.addProduct("Repriced", "3", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            BundleBService.CatalogProduct product = staff.listCatalog().getValue().get(0);
+            BundleBService buyer = new BundleBService(database, new FakeSecurity(2, 20, "buyer"));
+            buyer.initialize();
+            BundleBService.PurchaseQuote staleQuote = buyer.quotePurchase(product.getId(), "1").getValue();
+            BundleBService manager = new BundleBService(database, new FakeSecurity(4, 40, "manager"));
+            manager.initialize();
+            BundleBService.CatalogProduct current = manager.listCatalog().getValue().get(0);
+            check(manager.editProduct(current, "Repriced", "3", "2.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).isSuccess(),
+                    "manager reprices the product after the quote");
+            check(buyer.confirmPurchase(staleQuote).getStatus() == BundleBService.Status.CONFLICT,
+                    "quote created before a price change cannot be confirmed");
+            check(buyer.listCatalog().getValue().get(0).getStock() == 3, "rejected stale confirmation leaves stock unchanged");
+            check(buyer.historyForCurrentActor("").getValue().isEmpty(), "rejected stale confirmation creates no history");
+            BundleBService.PurchaseQuote freshQuote = buyer.quotePurchase(product.getId(), "1").getValue();
+            check(freshQuote.getTotalMinor() == 200L, "fresh quote uses the changed price");
+            check(buyer.confirmPurchase(freshQuote).isSuccess(), "fresh quote at the changed price confirms");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void purchaseSnapshotInsertFailureRollsBackStockAndAudit() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            staff.initialize();
+            staff.addProduct("Snapshot", "2", "3.00", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            int productId = staff.listCatalog().getValue().get(0).getId();
+            FakeSecurity buyerSecurity = new FakeSecurity(2, 20, "buyer");
+            BundleBService buyer = new BundleBService(database, buyerSecurity);
+            buyer.initialize();
+            BundleBService.PurchaseQuote quote = buyer.quotePurchase(productId, "1").getValue();
+            try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database.toAbsolutePath());
+                 java.sql.Statement statement = connection.createStatement()) {
+                statement.execute("CREATE TRIGGER refuse_snapshot BEFORE INSERT ON purchase_records "
+                        + "BEGIN SELECT RAISE(ABORT, 'forced snapshot failure'); END");
+            }
+            check(buyer.confirmPurchase(quote).getStatus() == BundleBService.Status.FAILURE,
+                    "forced snapshot insert failure returns a generic purchase error");
+            check(buyer.listCatalog().getValue().get(0).getStock() == 2, "snapshot failure restores stock");
+            check(buyer.historyForCurrentActor("").getValue().isEmpty(), "snapshot failure leaves no history row");
+            check(countRows(database, "SELECT COUNT(*) FROM purchase_records") == 0, "snapshot failure leaves no snapshot row");
+            check(countRows(database, "SELECT COUNT(*) FROM logs WHERE event = 'PURCHASE' AND \"desc\" LIKE '%outcome=FAILURE%'") == 1,
+                    "snapshot failure outcome is recorded outside its rolled-back transaction");
+            check(buyerSecurity.fallbackCount == 1, "snapshot transaction failure invokes the safe unprivileged fallback");
         } finally {
             Files.deleteIfExists(database);
         }

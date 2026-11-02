@@ -29,7 +29,7 @@ public final class BundleBService {
     private static final long MAX_PRICE_MINOR = 100_000_000L;
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9]{1,64}");
     private static final Pattern UNSIGNED_INTEGER = Pattern.compile("[0-9]{1,7}");
-    private static final Pattern PRICE = Pattern.compile("[0-9]{1,7}(?:\\.[0-9]{1,2})?");
+    private static final Pattern PRICE = Pattern.compile("[0-9]+(?:\\.[0-9]{1,2})?");
     private static final Pattern SEARCH = Pattern.compile("[A-Za-z0-9]{1,64}");
 
     private final Path database;
@@ -47,20 +47,26 @@ public final class BundleBService {
     public void initialize() {
         try (Connection connection = open()) {
             connection.setAutoCommit(false);
-            try (Statement statement = connection.createStatement()) {
-                statement.execute("CREATE TABLE IF NOT EXISTS product (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, stock INTEGER DEFAULT 0, price REAL DEFAULT 0.00)");
-                statement.execute("CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, name TEXT NOT NULL, stock INTEGER DEFAULT 0, timestamp TEXT NOT NULL)");
-                statement.execute("CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL, username TEXT NOT NULL, desc TEXT NOT NULL, timestamp TEXT NOT NULL)");
+            try (PreparedStatement statement = connection.prepareStatement("CREATE TABLE IF NOT EXISTS product (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, stock INTEGER DEFAULT 0, price REAL DEFAULT 0.00)")) {
+                statement.execute();
+            }
+            try (PreparedStatement statement = connection.prepareStatement("CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, name TEXT NOT NULL, stock INTEGER DEFAULT 0, timestamp TEXT NOT NULL)")) {
+                statement.execute();
+            }
+            try (PreparedStatement statement = connection.prepareStatement("CREATE TABLE IF NOT EXISTS logs (id INTEGER PRIMARY KEY AUTOINCREMENT, event TEXT NOT NULL, username TEXT NOT NULL, desc TEXT NOT NULL, timestamp TEXT NOT NULL)")) {
+                statement.execute();
             }
             addColumnIfMissing(connection, "product", "price_minor", "INTEGER");
             addColumnIfMissing(connection, "product", "version", "INTEGER NOT NULL DEFAULT 0");
-            try (Statement statement = connection.createStatement()) {
-                statement.execute("CREATE TABLE IF NOT EXISTS purchase_records ("
+            try (PreparedStatement statement = connection.prepareStatement("CREATE TABLE IF NOT EXISTS purchase_records ("
                         + "id INTEGER PRIMARY KEY AUTOINCREMENT, confirmation_id TEXT NOT NULL UNIQUE, "
                         + "buyer_id INTEGER NOT NULL, buyer_name TEXT NOT NULL, product_id INTEGER NOT NULL, "
                         + "product_name TEXT NOT NULL, unit_price_minor INTEGER NOT NULL, quantity INTEGER NOT NULL, "
-                        + "purchased_at_utc TEXT NOT NULL)");
-                statement.execute("CREATE INDEX IF NOT EXISTS purchase_records_buyer_id_idx ON purchase_records(buyer_id, id)");
+                        + "purchased_at_utc TEXT NOT NULL)")) {
+                statement.execute();
+            }
+            try (PreparedStatement statement = connection.prepareStatement("CREATE INDEX IF NOT EXISTS purchase_records_buyer_id_idx ON purchase_records(buyer_id, id)")) {
+                statement.execute();
             }
             migrateLegacyPrices(connection);
             connection.commit();
@@ -108,7 +114,7 @@ public final class BundleBService {
         try {
             Actor actor = authorized(Operation.ADD_PRODUCT, null);
             if (actor == null) { return Result.failure(Status.DENIED); }
-            if (!validProduct(name, stockText, priceText)) { logRejected("PRODUCT_ADD", null); return Result.failure(Status.INVALID); }
+            if (!isValidProductInput(name, stockText, priceText)) { logRejected("PRODUCT_ADD", null); return Result.failure(Status.INVALID); }
             int stock = parseInteger(stockText);
             long priceMinor = parseMinor(priceText);
             VerificationResult verification = reauthenticate(actor, Operation.ADD_PRODUCT, null,
@@ -159,7 +165,7 @@ public final class BundleBService {
         try {
             Actor actor = authorized(Operation.EDIT_PRODUCT, expected == null ? null : Integer.valueOf(expected.id));
             if (actor == null) { return Result.failure(Status.DENIED); }
-            if (expected == null || !validProduct(name, stockText, priceText)) { logRejected("PRODUCT_EDIT", expected); return Result.failure(Status.INVALID); }
+            if (expected == null || !isValidProductInput(name, stockText, priceText)) { logRejected("PRODUCT_EDIT", expected); return Result.failure(Status.INVALID); }
             int stock = parseInteger(stockText);
             long priceMinor = parseMinor(priceText);
             VerificationResult verification = reauthenticate(actor, Operation.EDIT_PRODUCT, Integer.valueOf(expected.id),
@@ -248,32 +254,51 @@ public final class BundleBService {
     public Result<PurchaseQuote> quotePurchase(int productId, String quantityText) {
         Actor actor = authorized(Operation.PURCHASE, Integer.valueOf(productId));
         if (actor == null) { return Result.failure(Status.DENIED); }
-        if (!UNSIGNED_INTEGER.matcher(quantityText == null ? "" : quantityText).matches()) {
+        if (!isValidPurchaseQuantityInput(quantityText)) {
             logRejected("PURCHASE_QUOTE", Integer.valueOf(productId));
             return Result.failure(Status.INVALID);
         }
         int quantity = parseInteger(quantityText);
-        if (quantity < 1 || quantity > MAX_COUNT || productId <= 0) {
+        if (productId <= 0) {
             logRejected("PURCHASE_QUOTE", Integer.valueOf(productId));
             return Result.failure(Status.INVALID);
         }
+        PurchaseQuote quote = null;
+        Status failure = null;
+        boolean insufficientStock = false;
         try (Connection connection = open();
              PreparedStatement statement = connection.prepareStatement("SELECT id, name, stock, price_minor, version FROM product WHERE id = ?")) {
             statement.setInt(1, productId);
             try (ResultSet row = statement.executeQuery()) {
-                if (!row.next()) { return Result.failure(Status.NOT_FOUND); }
-                long price = row.getLong("price_minor");
-                if (row.wasNull() || row.getInt("stock") < quantity) { return Result.failure(Status.CONFLICT); }
-                long total = Math.multiplyExact(price, (long) quantity);
-                PurchaseQuote quote = new PurchaseQuote(UUID.randomUUID().toString(), actor, productId,
-                        row.getString("name"), row.getInt("version"), row.getInt("stock"), price, quantity, total);
-                pendingQuotes.put(quote.confirmationId, quote);
-                return Result.success(quote);
+                if (!row.next()) {
+                    failure = Status.NOT_FOUND;
+                } else {
+                    int stock = row.getInt("stock");
+                    long price = row.getLong("price_minor");
+                    if (row.wasNull()) {
+                        failure = Status.CONFLICT;
+                    } else if (stock < quantity) {
+                        failure = Status.CONFLICT;
+                        insufficientStock = true;
+                    } else {
+                        long total = Math.multiplyExact(price, (long) quantity);
+                        quote = new PurchaseQuote(UUID.randomUUID().toString(), actor, productId,
+                                row.getString("name"), row.getInt("version"), stock, price, quantity, total);
+                    }
+                }
             }
         } catch (Exception ex) {
+            logOutcome(actor, "PURCHASE", "product:" + productId, "FAILURE");
             safeFallback();
             return Result.failure(Status.FAILURE);
         }
+        if (failure != null) {
+            if (insufficientStock) { logRejected("PURCHASE_QUOTE", Integer.valueOf(productId)); }
+            else { logOutcome(actor, "PURCHASE", "product:" + productId, failure.name()); }
+            return Result.failure(failure);
+        }
+        pendingQuotes.put(quote.confirmationId, quote);
+        return Result.success(quote);
     }
 
     public Result<PurchaseRecord> confirmPurchase(PurchaseQuote quote) {
@@ -456,13 +481,21 @@ public final class BundleBService {
                 && original.sessionGeneration == fresh.sessionGeneration;
     }
 
-    private boolean validProduct(String name, String stock, String price) {
+    public static boolean isValidProductInput(String name, String stock, String price) {
         if (name == null || !NAME.matcher(name).matches() || stock == null || !UNSIGNED_INTEGER.matcher(stock).matches()
-                || price == null || !PRICE.matcher(price).matches()) { return false; }
+                || price == null || price.length() > 10 || !PRICE.matcher(price).matches()) { return false; }
         try {
             int count = parseInteger(stock);
             long minor = parseMinor(price);
             return count <= MAX_COUNT && minor > 0 && minor <= MAX_PRICE_MINOR;
+        } catch (RuntimeException ex) { return false; }
+    }
+
+    public static boolean isValidPurchaseQuantityInput(String quantity) {
+        if (quantity == null || !UNSIGNED_INTEGER.matcher(quantity).matches()) { return false; }
+        try {
+            int count = parseInteger(quantity);
+            return count >= 1 && count <= MAX_COUNT;
         } catch (RuntimeException ex) { return false; }
     }
 
@@ -475,6 +508,8 @@ public final class BundleBService {
     private static boolean validSearch(String search) {
         return search != null && search.length() <= 64 && (search.length() == 0 || SEARCH.matcher(search).matches());
     }
+
+    public static boolean isValidHistorySearchInput(String search) { return validSearch(search); }
 
     private static boolean matches(PurchaseRecord record, String search) {
         return search.length() == 0 || record.buyerName.contains(search) || record.productName.contains(search);
@@ -525,7 +560,8 @@ public final class BundleBService {
     private static String utcNow() { return Instant.now().toString(); }
 
     private static int lastInsertId(Connection connection) throws SQLException {
-        try (Statement statement = connection.createStatement(); ResultSet result = statement.executeQuery("SELECT last_insert_rowid()")) {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT last_insert_rowid()");
+             ResultSet result = statement.executeQuery()) {
             if (!result.next()) { throw new SQLException("Insert identifier unavailable"); }
             return result.getInt(1);
         }
@@ -540,11 +576,14 @@ public final class BundleBService {
 
     private static void addColumnIfMissing(Connection connection, String table, String column, String definition) throws SQLException {
         boolean present = false;
-        try (Statement statement = connection.createStatement(); ResultSet columns = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
+        try (PreparedStatement statement = connection.prepareStatement("PRAGMA table_info(" + table + ")");
+             ResultSet columns = statement.executeQuery()) {
             while (columns.next()) { if (column.equalsIgnoreCase(columns.getString("name"))) { present = true; break; } }
         }
         if (!present) {
-            try (Statement statement = connection.createStatement()) { statement.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition); }
+            try (PreparedStatement statement = connection.prepareStatement("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition)) {
+                statement.execute();
+            }
         }
     }
 

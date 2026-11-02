@@ -39,13 +39,14 @@ public class MgmtProduct extends javax.swing.JPanel {
         addBtn.setVisible(manage);
         editBtn.setVisible(manage);
         deleteBtn.setVisible(manage);
+        products = Collections.emptyList();
+        tableModel.setRowCount(0);
         BundleBService.Result<List<BundleBService.CatalogProduct>> result = service.listCatalog();
         if (!result.isSuccess()) {
             if (result.getStatus() != BundleBService.Status.DENIED) { showResult(result); }
             return;
         }
         products = new ArrayList<BundleBService.CatalogProduct>(result.getValue());
-        tableModel.setRowCount(0);
         for (BundleBService.CatalogProduct product : products) {
             tableModel.addRow(new Object[] { product.getName(), product.getStock(), product.getPriceDisplay() });
         }
@@ -72,13 +73,31 @@ public class MgmtProduct extends javax.swing.JPanel {
         designer(price, "PRODUCT PRICE");
         designer(password, "CURRENT PASSWORD");
         Object[] fields = { "Product details (letters and digits only):", name, stock, price, password };
-        if (JOptionPane.showConfirmDialog(this, fields, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+        while (true) {
+            if (JOptionPane.showConfirmDialog(this, fields, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+                password.setText("");
+                return null;
+            }
+            char[] secret = password.getPassword();
             password.setText("");
-            return null;
+            String productName = name.getText();
+            String productStock = stock.getText();
+            String productPrice = price.getText();
+            if (BundleBService.isValidProductInput(productName, productStock, productPrice)) {
+                return new ProductInput(productName, productStock, productPrice, secret);
+            }
+            if (existing == null) {
+                BundleBService.Result<BundleBService.CatalogProduct> result =
+                        service.addProduct(productName, productStock, productPrice, secret);
+                showResult(result);
+                if (result.getStatus() != BundleBService.Status.INVALID) { return null; }
+            } else {
+                BundleBService.Result<BundleBService.CatalogProduct> result =
+                        service.editProduct(existing, productName, productStock, productPrice, secret);
+                showResult(result);
+                if (result.getStatus() != BundleBService.Status.INVALID) { return null; }
+            }
         }
-        char[] secret = password.getPassword();
-        password.setText("");
-        return new ProductInput(name.getText(), stock.getText(), price.getText(), secret);
     }
 
     private JPasswordField askCurrentPassword() {
@@ -229,6 +248,10 @@ public class MgmtProduct extends javax.swing.JPanel {
         Object[] message = { "How many " + product.getName() + " do you want?", quantity };
         if (JOptionPane.showConfirmDialog(this, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) { return; }
+        if (!BundleBService.isValidPurchaseQuantityInput(quantity.getText())) {
+            showResult(service.quotePurchase(product.getId(), quantity.getText()));
+            return;
+        }
         BundleBService.Result<BundleBService.PurchaseQuote> quoted = service.quotePurchase(product.getId(), quantity.getText());
         if (!quoted.isSuccess()) { showResult(quoted); return; }
         BundleBService.PurchaseQuote quote = quoted.getValue();
