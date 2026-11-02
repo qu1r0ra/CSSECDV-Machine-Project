@@ -5,11 +5,13 @@
  */
 package View;
 
-import Controller.SQLite;
-import Model.Product;
+import Controller.BundleBService;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Arrays;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
@@ -19,35 +21,81 @@ import javax.swing.table.DefaultTableModel;
  */
 public class MgmtProduct extends javax.swing.JPanel {
 
-    public SQLite sqlite;
+    private final BundleBService service;
     public DefaultTableModel tableModel;
+    private List<BundleBService.CatalogProduct> products = Collections.emptyList();
     
-    public MgmtProduct(SQLite sqlite) {
+    public MgmtProduct(BundleBService service) {
         initComponents();
-        this.sqlite = sqlite;
+        this.service = service;
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
-
-//        UNCOMMENT TO DISABLE BUTTONS
-//        purchaseBtn.setVisible(false);
-//        addBtn.setVisible(false);
-//        editBtn.setVisible(false);
-//        deleteBtn.setVisible(false);
     }
 
     public void init(){
-        //      CLEAR TABLE
-        for(int nCtr = tableModel.getRowCount(); nCtr > 0; nCtr--){
-            tableModel.removeRow(0);
+        boolean manage = service.canManageProducts();
+        boolean purchase = service.canPurchase();
+        purchaseBtn.setVisible(purchase);
+        addBtn.setVisible(manage);
+        editBtn.setVisible(manage);
+        deleteBtn.setVisible(manage);
+        BundleBService.Result<List<BundleBService.CatalogProduct>> result = service.listCatalog();
+        if (!result.isSuccess()) {
+            if (result.getStatus() != BundleBService.Status.DENIED) { showResult(result); }
+            return;
         }
-        
-//      LOAD CONTENTS
-        ArrayList<Product> products = sqlite.getProduct();
-        for(int nCtr = 0; nCtr < products.size(); nCtr++){
-            tableModel.addRow(new Object[]{
-                products.get(nCtr).getName(), 
-                products.get(nCtr).getStock(), 
-                products.get(nCtr).getPrice()});
+        products = new ArrayList<BundleBService.CatalogProduct>(result.getValue());
+        tableModel.setRowCount(0);
+        for (BundleBService.CatalogProduct product : products) {
+            tableModel.addRow(new Object[] { product.getName(), product.getStock(), product.getPriceDisplay() });
+        }
+    }
+
+    private BundleBService.CatalogProduct selectedProduct() {
+        int row = table.getSelectedRow();
+        if (row < 0) { return null; }
+        int modelRow = table.convertRowIndexToModel(row);
+        return modelRow >= 0 && modelRow < products.size() ? products.get(modelRow) : null;
+    }
+
+    private void showResult(BundleBService.Result<?> result) {
+        JOptionPane.showMessageDialog(this, result.getSafeMessage(), "Products", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private ProductInput askProduct(String title, BundleBService.CatalogProduct existing) {
+        JTextField name = new JTextField(existing == null ? "" : existing.getName());
+        JTextField stock = new JTextField(existing == null ? "" : Integer.toString(existing.getStock()));
+        JTextField price = new JTextField(existing == null || existing.getPriceMinor() == null ? "" : existing.getPriceDisplay());
+        JPasswordField password = new JPasswordField();
+        designer(name, "PRODUCT NAME");
+        designer(stock, "PRODUCT STOCK");
+        designer(price, "PRODUCT PRICE");
+        designer(password, "CURRENT PASSWORD");
+        Object[] fields = { "Product details (letters and digits only):", name, stock, price, password };
+        if (JOptionPane.showConfirmDialog(this, fields, title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+            password.setText("");
+            return null;
+        }
+        char[] secret = password.getPassword();
+        password.setText("");
+        return new ProductInput(name.getText(), stock.getText(), price.getText(), secret);
+    }
+
+    private JPasswordField askCurrentPassword() {
+        JPasswordField password = new JPasswordField();
+        designer(password, "CURRENT PASSWORD");
+        if (JOptionPane.showConfirmDialog(this, password, "VERIFY CURRENT PASSWORD", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+            password.setText("");
+            return null;
+        }
+        return password;
+    }
+
+    private static final class ProductInput {
+        final String name; final String stock; final String price; final char[] password;
+        ProductInput(String name, String stock, String price, char[] password) {
+            this.name = name; this.stock = stock; this.price = price; this.password = password;
         }
     }
     
@@ -174,77 +222,65 @@ public class MgmtProduct extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void purchaseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_purchaseBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            JTextField stockFld = new JTextField("0");
-            designer(stockFld, "PRODUCT STOCK");
-
-            Object[] message = {
-                "How many " + tableModel.getValueAt(table.getSelectedRow(), 0) + " do you want to purchase?", stockFld
-            };
-
-            int result = JOptionPane.showConfirmDialog(null, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-
-            if (result == JOptionPane.OK_OPTION) {
-                System.out.println(stockFld.getText());
-            }
+        BundleBService.CatalogProduct product = selectedProduct();
+        if (product == null) { showNoSelection(); return; }
+        JTextField quantity = new JTextField("1");
+        designer(quantity, "QUANTITY");
+        Object[] message = { "How many " + product.getName() + " do you want?", quantity };
+        if (JOptionPane.showConfirmDialog(this, message, "PURCHASE PRODUCT", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) { return; }
+        BundleBService.Result<BundleBService.PurchaseQuote> quoted = service.quotePurchase(product.getId(), quantity.getText());
+        if (!quoted.isSuccess()) { showResult(quoted); return; }
+        BundleBService.PurchaseQuote quote = quoted.getValue();
+        String confirmation = "Product: " + quote.getProductName() + "\nQuantity: " + quote.getQuantity()
+                + "\nUnit price: " + quote.getUnitPriceDisplay() + "\nTotal: " + quote.getTotalDisplay();
+        if (JOptionPane.showConfirmDialog(this, confirmation, "CONFIRM PURCHASE", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+            service.cancelPurchaseQuote(quote);
+            return;
         }
+        BundleBService.Result<BundleBService.PurchaseRecord> result = service.confirmPurchase(quote);
+        showResult(result);
+        if (result.isSuccess()) { init(); }
     }//GEN-LAST:event_purchaseBtnActionPerformed
 
     private void addBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addBtnActionPerformed
-        JTextField nameFld = new JTextField();
-        JTextField stockFld = new JTextField();
-        JTextField priceFld = new JTextField();
-
-        designer(nameFld, "PRODUCT NAME");
-        designer(stockFld, "PRODUCT STOCK");
-        designer(priceFld, "PRODUCT PRICE");
-
-        Object[] message = {
-            "Insert New Product Details:", nameFld, stockFld, priceFld
-        };
-
-        int result = JOptionPane.showConfirmDialog(null, message, "ADD PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-
-        if (result == JOptionPane.OK_OPTION) {
-            System.out.println(nameFld.getText());
-            System.out.println(stockFld.getText());
-            System.out.println(priceFld.getText());
-        }
+        ProductInput input = askProduct("ADD PRODUCT", null);
+        if (input == null) { return; }
+        BundleBService.Result<BundleBService.CatalogProduct> result = service.addProduct(input.name, input.stock, input.price, input.password);
+        showResult(result);
+        if (result.isSuccess()) { init(); }
     }//GEN-LAST:event_addBtnActionPerformed
 
     private void editBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            JTextField nameFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 0) + "");
-            JTextField stockFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 1) + "");
-            JTextField priceFld = new JTextField(tableModel.getValueAt(table.getSelectedRow(), 2) + "");
-
-            designer(nameFld, "PRODUCT NAME");
-            designer(stockFld, "PRODUCT STOCK");
-            designer(priceFld, "PRODUCT PRICE");
-
-            Object[] message = {
-                "Edit Product Details:", nameFld, stockFld, priceFld
-            };
-
-            int result = JOptionPane.showConfirmDialog(null, message, "EDIT PRODUCT", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
-
-            if (result == JOptionPane.OK_OPTION) {
-                System.out.println(nameFld.getText());
-                System.out.println(stockFld.getText());
-                System.out.println(priceFld.getText());
-            }
-        }
+        BundleBService.CatalogProduct selected = selectedProduct();
+        if (selected == null) { showNoSelection(); return; }
+        ProductInput input = askProduct("EDIT PRODUCT", selected);
+        if (input == null) { return; }
+        BundleBService.Result<BundleBService.CatalogProduct> result =
+                service.editProduct(selected, input.name, input.stock, input.price, input.password);
+        showResult(result);
+        if (result.isSuccess() || result.getStatus() == BundleBService.Status.CONFLICT) { init(); }
     }//GEN-LAST:event_editBtnActionPerformed
 
     private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE PRODUCT", JOptionPane.YES_NO_OPTION);
-            
-            if (result == JOptionPane.YES_OPTION) {
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
-            }
-        }
+        BundleBService.CatalogProduct selected = selectedProduct();
+        if (selected == null) { showNoSelection(); return; }
+        if (JOptionPane.showConfirmDialog(this, "Delete " + selected.getName() + "?", "DELETE PRODUCT",
+                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) { return; }
+        JPasswordField password = askCurrentPassword();
+        if (password == null) { return; }
+        char[] secret = password.getPassword();
+        password.setText("");
+        BundleBService.Result<Void> result = service.deleteProduct(selected, secret);
+        Arrays.fill(secret, '\0');
+        showResult(result);
+        if (result.isSuccess() || result.getStatus() == BundleBService.Status.CONFLICT) { init(); }
     }//GEN-LAST:event_deleteBtnActionPerformed
+
+    private void showNoSelection() {
+        JOptionPane.showMessageDialog(this, "Select a product first.", "Products", JOptionPane.INFORMATION_MESSAGE);
+    }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

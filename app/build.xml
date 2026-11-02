@@ -25,6 +25,24 @@
             description="Create a local database from the starter fixture when absent.">
         <copy file="fixtures/starter.db" tofile="database.db"/>
     </target>
+
+    <target name="test-bundle-b" depends="compile" description="Run Bundle B temporary-SQLite behavior checks.">
+        <mkdir dir="${build.test.classes.dir}"/>
+        <path id="bundle-b.test.classpath">
+            <pathelement location="${build.classes.dir}"/>
+            <pathelement location="${file.reference.sqlite-jdbc-3.23.1.jar}"/>
+        </path>
+        <javac srcdir="${test.src.dir}" destdir="${build.test.classes.dir}" includes="Controller/BundleBServiceTest.java"
+               source="1.8" target="1.8" encoding="UTF-8" includeantruntime="false">
+            <classpath refid="bundle-b.test.classpath"/>
+        </javac>
+        <java classname="Controller.BundleBServiceTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.test.classes.dir}"/>
+                <path refid="bundle-b.test.classpath"/>
+            </classpath>
+        </java>
+    </target>
     <!--
 
     There exist several targets which are by default empty and which can be 
