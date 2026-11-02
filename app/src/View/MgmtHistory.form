@@ -59,12 +59,12 @@
             </Property>
             <Property name="model" type="javax.swing.table.TableModel" editor="org.netbeans.modules.form.editors2.TableModelEditor">
               <Table columnCount="6" rowCount="4">
-                <Column editable="false" title="Username" type="java.lang.Object"/>
-                <Column editable="false" title="Name" type="java.lang.Object"/>
-                <Column editable="false" title="Stock" type="java.lang.Object"/>
-                <Column editable="false" title="Price" type="java.lang.Object"/>
+                <Column editable="false" title="Buyer" type="java.lang.Object"/>
+                <Column editable="false" title="Product" type="java.lang.Object"/>
+                <Column editable="false" title="Quantity" type="java.lang.Object"/>
+                <Column editable="false" title="Unit price" type="java.lang.Object"/>
                 <Column editable="false" title="Total" type="java.lang.Object"/>
-                <Column editable="false" title="Timestamp" type="java.lang.Object"/>
+                <Column editable="false" title="Purchased at" type="java.lang.Object"/>
               </Table>
             </Property>
             <Property name="columnModel" type="javax.swing.table.TableColumnModel" editor="org.netbeans.modules.form.editors2.TableColumnModelEditor">

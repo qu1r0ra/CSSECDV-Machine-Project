@@ -13,12 +13,16 @@ public final class BundleBServiceTest {
 
     public static void main(String[] args) throws Exception {
         clientCanBrowseButCannotManageProducts();
+        completeRoleMatrixEnforcedAtTheServiceBoundary();
         staffAddsExactPricedProductAfterBoundVerification();
         reauthenticationFailureAccountingRemainsProviderOwned();
+        sessionChangeAfterVerificationRejectsTheMutation();
         purchaseConfirmationPreservesImmutableFactsAndRejectsReplay();
+        acceptsMaximumFieldAndSearchBoundaries();
         clientHistoryIsScopedAndManagersCanSeeUnknownLegacyFacts();
         competingQuotesCannotSellTheLastUnitTwice();
         invalidInputAndAuditFailureLeaveNoPartialChanges();
+        failedEditAndDeleteAuditsInvokeFallback();
         failedPurchaseAuditRollsBackStockAndHistory();
         legacyPriceMigrationPreservesUnrepresentableValues();
         disabledAndAdminRolesHaveNoBundleBAccess();
@@ -93,7 +97,8 @@ public final class BundleBServiceTest {
     private static void invalidInputAndAuditFailureLeaveNoPartialChanges() throws Exception {
         Path database = Files.createTempFile("bundle-b-", ".db");
         try {
-            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            FakeSecurity security = new FakeSecurity(3, 30, "staff");
+            BundleBService staff = new BundleBService(database, security);
             staff.initialize();
             check(staff.addProduct("Bad Name", "1", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
                     == BundleBService.Status.INVALID, "spaces in product names are rejected");
@@ -119,6 +124,7 @@ public final class BundleBServiceTest {
             check(staff.listCatalog().getValue().isEmpty(), "failed audit rolls back product creation");
             check(countRows(database, "SELECT COUNT(*) FROM logs WHERE event = 'PRODUCT_ADD' AND \"desc\" LIKE '%outcome=FAILURE%'") == 1,
                     "failure outcome is recorded after rollback when audit storage remains available");
+            check(security.fallbackCount == 1, "audit transaction failure invokes the safe unprivileged fallback");
         } finally {
             Files.deleteIfExists(database);
         }
@@ -131,7 +137,8 @@ public final class BundleBServiceTest {
             staff.initialize();
             staff.addProduct("Atomic", "2", "3.75", new char[] {'S', 'a', 'f', 'e', '1', '!'});
             int productId = staff.listCatalog().getValue().get(0).getId();
-            BundleBService buyer = new BundleBService(database, new FakeSecurity(2, 20, "buyer"));
+            FakeSecurity buyerSecurity = new FakeSecurity(2, 20, "buyer");
+            BundleBService buyer = new BundleBService(database, buyerSecurity);
             buyer.initialize();
             check(buyer.quotePurchase(productId, "1000001").getStatus() == BundleBService.Status.INVALID,
                     "purchase quantity above the specified maximum is rejected");
@@ -148,6 +155,40 @@ public final class BundleBServiceTest {
             check(countRows(database, "SELECT COUNT(*) FROM purchase_records") == 0, "failed purchase leaves no snapshot row");
             check(countRows(database, "SELECT COUNT(*) FROM logs WHERE event = 'PURCHASE' AND \"desc\" LIKE '%outcome=FAILURE%'") == 1,
                     "failed purchase outcome is recorded outside its rolled-back transaction");
+            check(buyerSecurity.fallbackCount == 1, "purchase transaction failure invokes the safe unprivileged fallback");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void failedEditAndDeleteAuditsInvokeFallback() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            FakeSecurity security = new FakeSecurity(3, 30, "staff");
+            BundleBService service = new BundleBService(database, security);
+            service.initialize();
+            service.addProduct("Stable", "2", "3.75", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            BundleBService.CatalogProduct original = service.listCatalog().getValue().get(0);
+            service.setAuditWriterForTest(new BundleBService.AuditWriter() {
+                public void append(Connection connection, BundleBService.AuditEvent event) throws Exception {
+                    throw new Exception("storage failure");
+                }
+            });
+
+            check(service.editProduct(original, "Changed", "1", "4.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.FAILURE, "edit audit failure is generic");
+            BundleBService.CatalogProduct afterEditFailure = service.listCatalog().getValue().get(0);
+            check(afterEditFailure.getName().equals("Stable") && afterEditFailure.getStock() == 2,
+                    "failed edit audit rolls back all product changes");
+
+            check(service.deleteProduct(afterEditFailure, new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.FAILURE, "delete audit failure is generic");
+            check(service.listCatalog().getValue().size() == 1, "failed delete audit preserves the product");
+            check(security.fallbackCount == 2, "edit and delete transaction failures invoke the safe fallback");
+            check(countRows(database, "SELECT COUNT(*) FROM logs WHERE event = 'PRODUCT_EDIT' AND \"desc\" LIKE '%outcome=FAILURE%'") == 1,
+                    "edit failure is audited after rollback");
+            check(countRows(database, "SELECT COUNT(*) FROM logs WHERE event = 'PRODUCT_DELETE' AND \"desc\" LIKE '%outcome=FAILURE%'") == 1,
+                    "delete failure is audited after rollback");
         } finally {
             Files.deleteIfExists(database);
         }
@@ -227,16 +268,24 @@ public final class BundleBServiceTest {
             check(result.getValue().getTotalMinor().longValue() == 1230L, "purchase captures charged total");
             check(client.confirmPurchase(quote).getStatus() == BundleBService.Status.CONFLICT, "same quote cannot be replayed");
 
-            BundleBService manager = new BundleBService(database, new FakeSecurity(4, 40, "manager"));
+            FakeSecurity managerSecurity = new FakeSecurity(4, 41, "manager-edit");
+            BundleBService manager = new BundleBService(database, managerSecurity);
             manager.initialize();
             product = manager.listCatalog().getValue().get(0);
+            int preEditVersion = product.getVersion();
             check(manager.editProduct(product, "Token", "1", "99.99", new char[] {'S', 'a', 'f', 'e', '1', '!'}).isSuccess(), "catalog repricing");
+            check(managerSecurity.lastVerificationOperation == BundleBService.Operation.EDIT_PRODUCT, "edit verification operation");
+            check(managerSecurity.lastVerificationTargetId.intValue() == product.getId(), "edit verification target");
+            check((preEditVersion + "|Token|1|9999").equals(managerSecurity.lastVerificationFingerprint), "edit verification binds expected version and exact input");
             List<BundleBService.PurchaseRecord> records = manager.historyForCurrentActor("").getValue();
             check(records.size() == 1, "manager can view purchase history");
             check(records.get(0).getUnitPriceMinor().longValue() == 1230L, "history retains purchase-time price");
             check(records.get(0).getTotalMinor().longValue() == 1230L, "history retains purchase-time total");
             BundleBService.CatalogProduct edited = manager.listCatalog().getValue().get(0);
             check(manager.deleteProduct(edited, new char[] {'S', 'a', 'f', 'e', '1', '!'}).isSuccess(), "delete product after purchase");
+            check(managerSecurity.lastVerificationOperation == BundleBService.Operation.DELETE_PRODUCT, "delete verification operation");
+            check(managerSecurity.lastVerificationTargetId.intValue() == edited.getId(), "delete verification target");
+            check(("version:" + edited.getVersion()).equals(managerSecurity.lastVerificationFingerprint), "delete verification binds expected version");
             records = manager.historyForCurrentActor("").getValue();
             check(records.size() == 1 && records.get(0).getProductName().equals("Token"), "history survives product deletion");
         } finally {
@@ -256,6 +305,8 @@ public final class BundleBServiceTest {
             check(added.getValue().getPriceMinor().longValue() == 1230L, "exact minor-unit price");
             check(added.getValue().getStock() == 4, "product stock");
             check(security.lastVerificationOperation == BundleBService.Operation.ADD_PRODUCT, "fresh verification is bound to the mutation");
+            check(security.lastVerificationTargetId == null, "add verification has no existing product target");
+            check("Token|4|1230".equals(security.lastVerificationFingerprint), "add verification binds exact input");
             check(security.passwordCleared(password), "temporary password buffer is cleared");
             check(service.listCatalog().getValue().size() == 1, "added product is available through catalog");
         } finally {
@@ -270,11 +321,73 @@ public final class BundleBServiceTest {
             security.acceptPassword = false;
             BundleBService service = new BundleBService(database, security);
             service.initialize();
-            check(service.addProduct("Token", "1", "1.00", new char[] {'B', 'a', 'd'}).getStatus()
+            char[] password = new char[] {'B', 'a', 'd'};
+            check(service.addProduct("Token", "1", "1.00", password).getStatus()
                     == BundleBService.Status.REAUTH_REQUIRED, "failed current-password verification blocks the mutation");
+            check(security.passwordCleared(password), "failed verification also clears the temporary password");
             check(countRows(database, "SELECT COUNT(*) FROM product") == 0, "failed current-password verification leaves catalog unchanged");
             check(countRows(database, "SELECT COUNT(*) FROM logs WHERE event LIKE 'REAUTH_PRODUCT_%'") == 0,
                     "Bundle B does not duplicate provider-owned authentication failure events");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void sessionChangeAfterVerificationRejectsTheMutation() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            FakeSecurity security = new FakeSecurity(3, 30, "staff");
+            security.rotateSessionAfterVerification = true;
+            BundleBService service = new BundleBService(database, security);
+            service.initialize();
+            check(service.addProduct("Token", "1", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.DENIED, "changed session between verification and commit is rejected");
+            check(service.listCatalog().getValue().isEmpty(), "session change leaves catalog unchanged");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void acceptsMaximumFieldAndSearchBoundaries() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            BundleBService staff = new BundleBService(database, new FakeSecurity(3, 30, "staff"));
+            staff.initialize();
+            String maxName = repeat('A', 64);
+            check(staff.addProduct(maxName, "1000000", "1000000.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).isSuccess(),
+                    "maximum valid product name, stock and price are accepted");
+            check(staff.addProduct("Minimum", "0", "0.01", new char[] {'S', 'a', 'f', 'e', '1', '!'}).isSuccess(),
+                    "minimum valid stock and price are accepted");
+            check(staff.addProduct(repeat('A', 65), "1", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.INVALID, "65-character product name is rejected");
+            check(staff.addProduct("LongStock", "00000001", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.INVALID, "eight-character stock field is rejected even when its number is small");
+            check(staff.addProduct("LongPrice", "1", "00000000.01", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.INVALID, "eleven-character price field is rejected even when its number is small");
+            check(staff.addProduct("TooExpensive", "1", "1000000.01", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.INVALID, "price above the maximum is rejected");
+            check(staff.addProduct("Free", "1", "0.00", new char[] {'S', 'a', 'f', 'e', '1', '!'}).getStatus()
+                    == BundleBService.Status.INVALID, "zero price is rejected");
+            int productId = staff.listCatalog().getValue().get(0).getId();
+
+            BundleBService buyer = new BundleBService(database, new FakeSecurity(2, 20, "buyer"));
+            buyer.initialize();
+            BundleBService.PurchaseQuote quote = buyer.quotePurchase(productId, "1000000").getValue();
+            check(quote != null && quote.getQuantity() == 1000000, "maximum quantity is accepted");
+            check(quote.getTotalMinor() == 100000000000000L, "maximum purchase total remains exact");
+            check(buyer.confirmPurchase(quote).isSuccess(), "maximum-quantity purchase confirms");
+
+            BundleBService manager = new BundleBService(database, new FakeSecurity(4, 40, "manager"));
+            manager.initialize();
+            check(manager.historyForCurrentActor(maxName).getValue().size() == 1, "64-character history search is accepted");
+            check(manager.historyForCurrentActor(repeat('A', 65)).getStatus() == BundleBService.Status.INVALID,
+                    "65-character history search is rejected");
+            check(buyer.quotePurchase(productId, "1000001").getStatus() == BundleBService.Status.INVALID,
+                    "quantity above the maximum is rejected");
+            check(buyer.quotePurchase(productId, "00000001").getStatus() == BundleBService.Status.INVALID,
+                    "eight-character quantity is rejected even when its number is small");
+            check(buyer.quotePurchase(productId, "0").getStatus() == BundleBService.Status.INVALID,
+                    "zero purchase quantity is rejected");
         } finally {
             Files.deleteIfExists(database);
         }
@@ -292,6 +405,50 @@ public final class BundleBServiceTest {
                     service.addProduct("New", "1", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'});
             check(rejected.getStatus() == BundleBService.Status.DENIED, "client product mutation denied");
             check(service.listCatalog().getValue().isEmpty(), "denied mutation leaves catalog unchanged");
+        } finally {
+            Files.deleteIfExists(database);
+        }
+    }
+
+    private static void completeRoleMatrixEnforcedAtTheServiceBoundary() throws Exception {
+        Path database = Files.createTempFile("bundle-b-", ".db");
+        try {
+            BundleBService setup = new BundleBService(database, new FakeSecurity(3, 30, "setup"));
+            setup.initialize();
+            setup.addProduct("Access", "20", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+            BundleBService.CatalogProduct initialProduct = setup.listCatalog().getValue().get(0);
+
+            for (int role = 1; role <= 5; role++) {
+                FakeSecurity security = new FakeSecurity(role, 100 + role, "role" + role);
+                BundleBService service = new BundleBService(database, security);
+                service.initialize();
+                boolean catalogAllowed = role == 2 || role == 3 || role == 4;
+                boolean manageAllowed = role == 3 || role == 4;
+                boolean purchaseAllowed = role == 2;
+                boolean historyAllowed = role == 2 || role == 4;
+
+                check(service.listCatalog().isSuccess() == catalogAllowed, "catalog role " + role);
+                check(service.canManageProducts() == manageAllowed, "management visibility role " + role);
+                check(service.canPurchase() == purchaseAllowed, "purchase visibility role " + role);
+                check(service.canViewHistory() == historyAllowed, "history visibility role " + role);
+                check(service.historyForCurrentActor("").isSuccess() == historyAllowed, "direct history role " + role);
+
+                BundleBService.Result<BundleBService.CatalogProduct> added = service.addProduct(
+                        "Role" + role, "1", "1.00", new char[] {'S', 'a', 'f', 'e', '1', '!'});
+                check(added.isSuccess() == manageAllowed, "direct mutation role " + role);
+                BundleBService.CatalogProduct target = added.isSuccess() ? added.getValue() : initialProduct;
+                BundleBService.Result<BundleBService.CatalogProduct> edited = service.editProduct(target,
+                        target.getName(), Integer.toString(target.getStock()), target.getPriceDisplay(),
+                        new char[] {'S', 'a', 'f', 'e', '1', '!'});
+                check(edited.isSuccess() == manageAllowed, "direct edit role " + role);
+                BundleBService.CatalogProduct deleteTarget = edited.isSuccess() ? edited.getValue() : target;
+                check(service.deleteProduct(deleteTarget, new char[] {'S', 'a', 'f', 'e', '1', '!'}).isSuccess() == manageAllowed,
+                        "direct delete role " + role);
+
+                BundleBService.Result<BundleBService.PurchaseQuote> quote = service.quotePurchase(initialProduct.getId(), "1");
+                check(quote.isSuccess() == purchaseAllowed, "direct purchase role " + role);
+                if (quote.isSuccess()) { service.cancelPurchaseQuote(quote.getValue()); }
+            }
         } finally {
             Files.deleteIfExists(database);
         }
@@ -316,9 +473,13 @@ public final class BundleBServiceTest {
     }
 
     private static final class FakeSecurity implements BundleBService.SecurityGateway {
-        private final BundleBService.Actor actor;
+        private BundleBService.Actor actor;
         private BundleBService.Operation lastVerificationOperation;
+        private Integer lastVerificationTargetId;
+        private String lastVerificationFingerprint;
         private boolean acceptPassword = true;
+        private boolean rotateSessionAfterVerification;
+        private int fallbackCount;
         FakeSecurity() { actor = null; }
         FakeSecurity(int role, long userId, String username) {
             actor = new BundleBService.Actor(userId, username, role, userId * 10);
@@ -330,9 +491,17 @@ public final class BundleBServiceTest {
         public boolean verifyCurrentPassword(BundleBService.Actor current, BundleBService.Operation operation,
                 Integer targetId, String requestFingerprint, char[] password) {
             lastVerificationOperation = operation;
-            return acceptPassword && current == actor && operation != null && requestFingerprint != null && password.length > 0;
+            lastVerificationTargetId = targetId;
+            lastVerificationFingerprint = requestFingerprint;
+            boolean accepted = acceptPassword && current == actor && operation != null
+                    && requestFingerprint != null && password.length > 0;
+            if (accepted && rotateSessionAfterVerification) {
+                actor = new BundleBService.Actor(current.getUserId(), current.getUsername(), current.getRole(),
+                        current.getSessionGeneration() + 1);
+            }
+            return accepted;
         }
-        public void onUnrecoverableFailure() { }
+        public void onUnrecoverableFailure() { fallbackCount++; }
         boolean passwordCleared(char[] password) {
             for (char value : password) { if (value != '\0') { return false; } }
             return true;

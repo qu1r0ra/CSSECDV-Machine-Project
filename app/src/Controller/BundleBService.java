@@ -96,8 +96,7 @@ public final class BundleBService {
     public boolean canViewHistory() {
         try {
             Actor actor = security.currentActor();
-            Operation operation = actor != null && actor.role == CLIENT ? Operation.READ_OWN_HISTORY
-                    : actor != null && actor.role == MANAGER ? Operation.READ_ALL_HISTORY : null;
+            Operation operation = historyOperation(actor);
             return operation != null && isAllowedRole(actor, operation) && security.authorize(actor, operation, null);
         } catch (RuntimeException ex) {
             safeFallback();
@@ -137,10 +136,12 @@ public final class BundleBService {
                     rollback(connection);
                     Status status = isConstraint(ex) ? Status.CONFLICT : Status.FAILURE;
                     logOutcome(actor, "PRODUCT_ADD", "input", status.name());
+                    if (status == Status.FAILURE) { safeFallback(); }
                     return Result.failure(status);
                 } catch (Exception ex) {
                     rollback(connection);
                     logOutcome(actor, "PRODUCT_ADD", "input", "FAILURE");
+                    safeFallback();
                     return Result.failure(Status.FAILURE);
                 }
             }
@@ -190,6 +191,7 @@ public final class BundleBService {
                     rollback(connection);
                     Status status = ex instanceof SQLException && isConstraint((SQLException) ex) ? Status.CONFLICT : Status.FAILURE;
                     logOutcome(actor, "PRODUCT_EDIT", "product:" + expected.id, status.name());
+                    if (status == Status.FAILURE) { safeFallback(); }
                     return Result.failure(status);
                 }
             }
@@ -225,6 +227,7 @@ public final class BundleBService {
                 } catch (Exception ex) {
                     rollback(connection);
                     logOutcome(actor, "PRODUCT_DELETE", "product:" + expected.id, "FAILURE");
+                    safeFallback();
                     return Result.failure(Status.FAILURE);
                 }
             }
@@ -317,6 +320,7 @@ public final class BundleBService {
             } catch (Exception ex) {
                 rollback(connection);
                 logOutcome(actor, "PURCHASE", "confirmation:" + quote.confirmationId, "FAILURE");
+                safeFallback();
                 return Result.failure(Status.FAILURE);
             }
         } catch (Exception ex) {
@@ -336,8 +340,7 @@ public final class BundleBService {
         try { actor = security.currentActor(); }
         catch (RuntimeException ex) { safeFallback(); return Result.failure(Status.FAILURE); }
         if (actor == null) { logRejected("UNAUTHORIZED_READ_HISTORY", null); return Result.failure(Status.DENIED); }
-        Operation operation = actor.role == CLIENT ? Operation.READ_OWN_HISTORY
-                : actor.role == MANAGER ? Operation.READ_ALL_HISTORY : null;
+        Operation operation = historyOperation(actor);
         if (operation == null || !isAllowedRole(actor, operation)) {
             logRejected("UNAUTHORIZED_READ_HISTORY", null);
             return Result.failure(Status.DENIED);
@@ -417,6 +420,13 @@ public final class BundleBService {
             case READ_ALL_HISTORY: return actor.role == MANAGER;
             default: return false;
         }
+    }
+
+    private static Operation historyOperation(Actor actor) {
+        if (actor == null) { return null; }
+        if (actor.role == CLIENT) { return Operation.READ_OWN_HISTORY; }
+        if (actor.role == MANAGER) { return Operation.READ_ALL_HISTORY; }
+        return null;
     }
 
     private boolean reauthenticate(Actor actor, Operation operation, Integer target, String fingerprint, char[] password) {
