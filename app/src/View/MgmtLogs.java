@@ -5,6 +5,7 @@
  */
 package View;
 
+import Controller.AccessControl;
 import Controller.SQLite;
 import Model.Logs;
 import java.util.ArrayList;
@@ -17,11 +18,13 @@ import javax.swing.table.DefaultTableModel;
 public class MgmtLogs extends javax.swing.JPanel {
 
     public SQLite sqlite;
+    private final AccessControl access;
     public DefaultTableModel tableModel;
     
-    public MgmtLogs(SQLite sqlite) {
+    public MgmtLogs(SQLite sqlite, AccessControl access) {
         initComponents();
         this.sqlite = sqlite;
+        this.access = access;
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
         
@@ -37,6 +40,7 @@ public class MgmtLogs extends javax.swing.JPanel {
         }
         
 //      LOAD CONTENTS
+        if(!access.check(AccessControl.Feature.VIEW_LOGS)){ return; }
         ArrayList<Logs> logs = sqlite.getLogs();
         for(int nCtr = 0; nCtr < logs.size(); nCtr++){
             tableModel.addRow(new Object[]{
@@ -135,10 +139,12 @@ public class MgmtLogs extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void clearBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clearBtnActionPerformed
+        if(!access.check(AccessControl.Feature.MANAGE_LOGS)){ return; }
         
     }//GEN-LAST:event_clearBtnActionPerformed
 
     private void debugBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_debugBtnActionPerformed
+        if(!access.check(AccessControl.Feature.MANAGE_LOGS)){ return; }
         if(sqlite.DEBUG_MODE == 1)
             sqlite.DEBUG_MODE = 0;
         else

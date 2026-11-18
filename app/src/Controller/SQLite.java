@@ -186,7 +186,7 @@ public class SQLite {
         try (Connection conn = DriverManager.getConnection(driverURL);
             PreparedStatement pstmt = conn.prepareStatement(sql)){
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            pstmt.setString(2, PasswordHasher.hash(password == null ? new char[0] : password.toCharArray()));
             pstmt.executeUpdate();
         } catch (Exception ex) {
             System.out.print(ex);
@@ -281,7 +281,7 @@ public class SQLite {
         try (Connection conn = DriverManager.getConnection(driverURL);
             PreparedStatement pstmt = conn.prepareStatement(sql)){
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            pstmt.setString(2, PasswordHasher.hash(password == null ? new char[0] : password.toCharArray()));
             pstmt.setInt(3, role);
             pstmt.executeUpdate();
         } catch (Exception ex) {

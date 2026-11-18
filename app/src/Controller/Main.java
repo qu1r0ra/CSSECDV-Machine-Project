@@ -7,6 +7,7 @@ import Model.Product;
 import Model.User;
 import View.Frame;
 import java.sql.Timestamp;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
@@ -17,6 +18,9 @@ public class Main {
     
     public SQLite sqlite;
     public BundleBService bundleBService;
+    public AuthService auth;
+    public AccessControl access;
+    public UserAdminService userAdmin;
     private Frame frame;
     
     public static void main(String[] args) {
@@ -26,13 +30,19 @@ public class Main {
     public void init(){
         // Initialize a driver object
         sqlite = new SQLite();
-        bundleBService = new BundleBService(Paths.get("database.db"), new BundleBService.SecurityGateway() {
-            public BundleBService.Actor currentActor() { return null; }
-            public boolean authorize(BundleBService.Actor actor, BundleBService.Operation operation, Integer targetId) { return false; }
-            public boolean verifyCurrentPassword(BundleBService.Actor actor, BundleBService.Operation operation,
-                    Integer targetId, String requestFingerprint, char[] password) { return false; }
-            public void onUnrecoverableFailure() { if (frame != null) { frame.showSafeUnprivilegedState(); } }
+        Path databasePath = Paths.get("database.db");
+        SecurityAudit audit = SecurityAudit.NONE; // Logging bundle: supply an implementation that writes to the logs table
+        auth = new AuthService(databasePath, audit);
+        try { auth.initialize(); }
+        catch (IllegalStateException ignored) { /* login then fails closed with a generic message */ }
+        access = new AccessControl(auth);
+        userAdmin = new UserAdminService(auth, access);
+        auth.setSessionRevokedListener(new Runnable() {
+            public void run() { if (frame != null) { frame.showSafeUnprivilegedState(); } }
         });
+        bundleBService = new BundleBService(databasePath, new AppSecurityGateway(auth, new Runnable() {
+            public void run() { if (frame != null) { frame.showSafeUnprivilegedState(); } }
+        }));
         try { bundleBService.initialize(); }
         catch (IllegalStateException ignored) { /* B remains unavailable and all protected actions fail closed. */ }
 

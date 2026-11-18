@@ -1,9 +1,12 @@
 package View;
 
+import Controller.AccessControl;
+import Controller.AuthService;
 import Controller.Main;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import javax.swing.JOptionPane;
 import javax.swing.WindowConstants;
 
 public class Frame extends javax.swing.JFrame {
@@ -180,27 +183,23 @@ public class Frame extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void adminBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_adminBtnActionPerformed
-        adminHomePnl.showPnl("home");
-        contentView.show(Content, "adminHomePnl");
+        showHomePanel(AccessControl.Feature.VIEW_ADMIN_HOME, adminHomePnl, "adminHomePnl");
     }//GEN-LAST:event_adminBtnActionPerformed
 
     private void managerBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_managerBtnActionPerformed
-        managerHomePnl.showPnl("home");
-        contentView.show(Content, "managerHomePnl");
+        showHomePanel(AccessControl.Feature.VIEW_MANAGER_HOME, managerHomePnl, "managerHomePnl");
     }//GEN-LAST:event_managerBtnActionPerformed
 
     private void staffBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_staffBtnActionPerformed
-        staffHomePnl.showPnl("home");
-        contentView.show(Content, "staffHomePnl");
+        showHomePanel(AccessControl.Feature.VIEW_STAFF_HOME, staffHomePnl, "staffHomePnl");
     }//GEN-LAST:event_staffBtnActionPerformed
 
     private void clientBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_clientBtnActionPerformed
-        clientHomePnl.showPnl("home");
-        contentView.show(Content, "clientHomePnl");
+        showHomePanel(AccessControl.Feature.VIEW_CLIENT_HOME, clientHomePnl, "clientHomePnl");
     }//GEN-LAST:event_clientBtnActionPerformed
 
     private void logoutBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logoutBtnActionPerformed
-        frameView.show(Container, "loginPnl");
+        showSafeUnprivilegedState();
     }//GEN-LAST:event_logoutBtnActionPerformed
 
     public Main main;
@@ -224,10 +223,11 @@ public class Frame extends javax.swing.JFrame {
         loginPnl.frame = this;
         registerPnl.frame = this;
         
-        adminHomePnl.init(main.sqlite, main.bundleBService);
-        clientHomePnl.init(main.sqlite, main.bundleBService);
-        managerHomePnl.init(main.sqlite, main.bundleBService);
-        staffHomePnl.init(main.sqlite, main.bundleBService);
+        adminHomePnl.init(main.sqlite, main.bundleBService, main.userAdmin, main.access);
+        clientHomePnl.init(main.sqlite, main.bundleBService, main.userAdmin, main.access);
+        managerHomePnl.init(main.sqlite, main.bundleBService, main.userAdmin, main.access);
+        staffHomePnl.init(main.sqlite, main.bundleBService, main.userAdmin, main.access);
+        hideRoleButtons();
         
         Container.setLayout(frameView);
         Container.add(loginPnl, "loginPnl");
@@ -244,8 +244,57 @@ public class Frame extends javax.swing.JFrame {
         this.setVisible(true);
     }
     
-    public void mainNav(){
+    /** Authenticates and, on success, sends the user to the home panel for their role. Returns true on success. */
+    public boolean loginAction(String username, char[] password){
+        AuthService.LoginResult result = main.auth.login(username, password);
+        if (!result.isSuccess()) {
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Login", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        if (!enterHomeForCurrentRole()) {
+            showSafeUnprivilegedState();
+            JOptionPane.showMessageDialog(this, AuthService.GENERIC_LOGIN_FAILURE, "Login", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        JOptionPane.showMessageDialog(this, result.describePreviousAttempt(), "Welcome " + result.getUsername(), JOptionPane.INFORMATION_MESSAGE);
+        return true;
+    }
+
+    /** Only reachable with a valid session; each role is routed to its own panel and no other. */
+    private boolean enterHomeForCurrentRole(){
+        hideRoleButtons();
+        Controller.BundleBService.Actor actor = main.auth.currentActor();
+        AccessControl.Feature home = actor == null ? null : AccessControl.homeFor(actor.getRole());
+        if (home == null || !main.access.check(home)) { return false; }
+        switch (home) {
+            case VIEW_ADMIN_HOME: adminBtn.setVisible(true); showHomePanel(home, adminHomePnl, "adminHomePnl"); break;
+            case VIEW_MANAGER_HOME: managerBtn.setVisible(true); showHomePanel(home, managerHomePnl, "managerHomePnl"); break;
+            case VIEW_STAFF_HOME: staffBtn.setVisible(true); showHomePanel(home, staffHomePnl, "staffHomePnl"); break;
+            case VIEW_CLIENT_HOME: clientBtn.setVisible(true); showHomePanel(home, clientHomePnl, "clientHomePnl"); break;
+            default: return false;
+        }
         frameView.show(Container, "homePnl");
+        return true;
+    }
+
+    private void showHomePanel(AccessControl.Feature feature, javax.swing.JPanel panel, String card){
+        if (main == null || !main.access.check(feature)) {
+            if (main == null || main.auth.currentActor() == null) { showSafeUnprivilegedState(); }
+            else { JOptionPane.showMessageDialog(this, "This action is not available for the current account.", "Access", JOptionPane.WARNING_MESSAGE); }
+            return;
+        }
+        if (panel instanceof AdminHome) { ((AdminHome) panel).showPnl("home"); }
+        else if (panel instanceof ManagerHome) { ((ManagerHome) panel).showPnl("home"); }
+        else if (panel instanceof StaffHome) { ((StaffHome) panel).showPnl("home"); }
+        else if (panel instanceof ClientHome) { ((ClientHome) panel).showPnl("home"); }
+        contentView.show(Content, card);
+    }
+
+    private void hideRoleButtons(){
+        adminBtn.setVisible(false);
+        managerBtn.setVisible(false);
+        staffBtn.setVisible(false);
+        clientBtn.setVisible(false);
     }
     
     public void loginNav(){
@@ -256,12 +305,19 @@ public class Frame extends javax.swing.JFrame {
         frameView.show(Container, "registerPnl");
     }
 
+    /** Ends any session, clears protected views and returns to the unprivileged login page. */
     public void showSafeUnprivilegedState(){
+        if (main != null) { main.auth.logout(); }
+        hideRoleButtons();
+        adminHomePnl.showPnl("home");
+        managerHomePnl.showPnl("home");
+        staffHomePnl.showPnl("home");
+        clientHomePnl.showPnl("home");
         frameView.show(Container, "loginPnl");
     }
     
-    public void registerAction(String username, String password, String confpass){
-        main.sqlite.addUser(username, password);
+    public AuthService.RegistrationResult registerAction(String username, char[] password, char[] confpass){
+        return main.auth.register(username, password, confpass);
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

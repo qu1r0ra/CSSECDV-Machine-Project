@@ -5,9 +5,10 @@
  */
 package View;
 
-import Controller.SQLite;
-import Model.User;
+import Controller.InputValidator;
+import Controller.UserAdminService;
 import java.util.ArrayList;
+import java.util.List;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
@@ -22,14 +23,17 @@ import javax.swing.table.DefaultTableModel;
  */
 public class MgmtUser extends javax.swing.JPanel {
 
-    public SQLite sqlite;
+    private final UserAdminService admin;
+    private List<UserAdminService.UserRow> users = new ArrayList<UserAdminService.UserRow>();
     public DefaultTableModel tableModel;
     
-    public MgmtUser(SQLite sqlite) {
+    public MgmtUser(UserAdminService admin) {
         initComponents();
-        this.sqlite = sqlite;
+        this.admin = admin;
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));
+        // Password material is never shown: the starter's Password column is removed from the view.
+        table.removeColumn(table.getColumnModel().getColumn(1));
         
 //        UNCOMMENT TO DISABLE BUTTONS
 //        editBtn.setVisible(false);
@@ -45,14 +49,37 @@ public class MgmtUser extends javax.swing.JPanel {
         }
         
 //      LOAD CONTENTS
-        ArrayList<User> users = sqlite.getUsers();
+        users = admin.listUsers();
         for(int nCtr = 0; nCtr < users.size(); nCtr++){
             tableModel.addRow(new Object[]{
                 users.get(nCtr).getUsername(), 
-                users.get(nCtr).getPassword(), 
+                "", 
                 users.get(nCtr).getRole(), 
                 users.get(nCtr).getLocked()});
         }
+    }
+
+    private UserAdminService.UserRow selectedUser(){
+        int row = table.getSelectedRow();
+        return row >= 0 && row < users.size() ? users.get(row) : null;
+    }
+
+    private void show(UserAdminService.Result result, String title){
+        JOptionPane.showMessageDialog(this, result.getMessage(), title,
+            result.isSuccess() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.WARNING_MESSAGE);
+    }
+
+    /** Prompts for the administrator's own password; returns null if cancelled. */
+    private char[] askAdminPassword(){
+        JPasswordField password = new JPasswordField();
+        designer(password, "YOUR CURRENT PASSWORD");
+        if (JOptionPane.showConfirmDialog(this, password, "VERIFY YOUR PASSWORD", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+            password.setText("");
+            return null;
+        }
+        char[] secret = password.getPassword();
+        password.setText("");
+        return secret;
     }
 
     public void designer(JTextField component, String text){
@@ -179,62 +206,77 @@ public class MgmtUser extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void editRoleBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editRoleBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
+        UserAdminService.UserRow user = selectedUser();
+        if(user != null){
             String[] options = {"1-DISABLED","2-CLIENT","3-STAFF","4-MANAGER","5-ADMIN"};
-            JComboBox optionList = new JComboBox(options);
+            int current = InputValidator.isValidRole(user.getRole()) ? user.getRole() - 1 : 0;
             
-            optionList.setSelectedIndex((int)tableModel.getValueAt(table.getSelectedRow(), 2) - 1);
-            
-            String result = (String) JOptionPane.showInputDialog(null, "USER: " + tableModel.getValueAt(table.getSelectedRow(), 0), 
-                "EDIT USER ROLE", JOptionPane.QUESTION_MESSAGE, null, options, options[(int)tableModel.getValueAt(table.getSelectedRow(), 2) - 1]);
+            String result = (String) JOptionPane.showInputDialog(null, "USER: " + user.getUsername(), 
+                "EDIT USER ROLE", JOptionPane.QUESTION_MESSAGE, null, options, options[current]);
             
             if(result != null){
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
-                System.out.println(result.charAt(0));
+                char[] secret = askAdminPassword();
+                if(secret == null) { return; }
+                show(admin.changeRole(user.getId(), result.substring(0, 1), secret), "EDIT USER ROLE");
+                init();
             }
         }
     }//GEN-LAST:event_editRoleBtnActionPerformed
 
     private void deleteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE USER", JOptionPane.YES_NO_OPTION);
+        UserAdminService.UserRow user = selectedUser();
+        if(user != null){
+            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete " + user.getUsername() + "?", "DELETE USER", JOptionPane.YES_NO_OPTION);
             
             if (result == JOptionPane.YES_OPTION) {
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
+                char[] secret = askAdminPassword();
+                if(secret == null) { return; }
+                show(admin.deleteUser(user.getId(), secret), "DELETE USER");
+                init();
             }
         }
     }//GEN-LAST:event_deleteBtnActionPerformed
 
     private void lockBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_lockBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            String state = "lock";
-            if("1".equals(tableModel.getValueAt(table.getSelectedRow(), 3) + "")){
-                state = "unlock";
-            }
+        UserAdminService.UserRow user = selectedUser();
+        if(user != null){
+            boolean unlock = user.getLocked() == 1;
+            String state = unlock ? "unlock" : "lock";
             
-            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to " + state + " " + tableModel.getValueAt(table.getSelectedRow(), 0) + "?", "DELETE USER", JOptionPane.YES_NO_OPTION);
+            int result = JOptionPane.showConfirmDialog(null, "Are you sure you want to " + state + " " + user.getUsername() + "?", "LOCK/UNLOCK USER", JOptionPane.YES_NO_OPTION);
             
             if (result == JOptionPane.YES_OPTION) {
-                System.out.println(tableModel.getValueAt(table.getSelectedRow(), 0));
+                show(admin.setLocked(user.getId(), !unlock), "LOCK/UNLOCK USER");
+                init();
             }
         }
     }//GEN-LAST:event_lockBtnActionPerformed
 
     private void chgpassBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_chgpassBtnActionPerformed
-        if(table.getSelectedRow() >= 0){
-            JTextField password = new JPasswordField();
-            JTextField confpass = new JPasswordField();
+        UserAdminService.UserRow user = selectedUser();
+        if(user != null){
+            JPasswordField password = new JPasswordField();
+            JPasswordField confpass = new JPasswordField();
             designer(password, "PASSWORD");
             designer(confpass, "CONFIRM PASSWORD");
             
             Object[] message = {
-                "Enter New Password:", password, confpass
+                "Enter New Password for " + user.getUsername() + ":", password, confpass
             };
 
             int result = JOptionPane.showConfirmDialog(null, message, "CHANGE PASSWORD", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, null);
+            char[] newPass = password.getPassword();
+            char[] confirm = confpass.getPassword();
+            password.setText("");
+            confpass.setText("");
             
             if (result == JOptionPane.OK_OPTION) {
-                // Entered passwords are not printed. Persisting a changed password belongs to Bundle A's credential flow.
+                char[] secret = askAdminPassword();
+                if(secret == null) { java.util.Arrays.fill(newPass, '\0'); java.util.Arrays.fill(confirm, '\0'); return; }
+                show(admin.changePassword(user.getId(), newPass, confirm, secret), "CHANGE PASSWORD");
+            } else {
+                java.util.Arrays.fill(newPass, '\0');
+                java.util.Arrays.fill(confirm, '\0');
             }
         }
     }//GEN-LAST:event_chgpassBtnActionPerformed

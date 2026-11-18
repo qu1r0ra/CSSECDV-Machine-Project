@@ -43,6 +43,23 @@
             </classpath>
         </java>
     </target>
+    <target name="test-bundle-a" depends="compile" description="Run authentication, authorization and validation behavior checks.">
+        <mkdir dir="${build.test.classes.dir}"/>
+        <path id="bundle-a.test.classpath">
+            <pathelement location="${build.classes.dir}"/>
+            <pathelement location="${file.reference.sqlite-jdbc-3.23.1.jar}"/>
+        </path>
+        <javac srcdir="${test.src.dir}" destdir="${build.test.classes.dir}" includes="Controller/AuthServiceTest.java"
+               source="1.8" target="1.8" encoding="UTF-8" includeantruntime="false">
+            <classpath refid="bundle-a.test.classpath"/>
+        </javac>
+        <java classname="Controller.AuthServiceTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.test.classes.dir}"/>
+                <path refid="bundle-a.test.classpath"/>
+            </classpath>
+        </java>
+    </target>
     <!--
 
     There exist several targets which are by default empty and which can be 

@@ -6,7 +6,9 @@
 package View;
 //[255,102,51]
 import Controller.SQLite;
+import Controller.AccessControl;
 import Controller.BundleBService;
+import Controller.UserAdminService;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.util.ArrayList;
@@ -29,11 +31,11 @@ public class ClientHome extends javax.swing.JPanel {
         initComponents();
     }
     
-    public void init(SQLite sqlite, BundleBService bundleB){
+    public void init(SQLite sqlite, BundleBService bundleB, UserAdminService userAdmin, AccessControl access){
         mgmtHistory = new MgmtHistory(bundleB);
-        mgmtLogs = new MgmtLogs(sqlite);
+        mgmtLogs = new MgmtLogs(sqlite, access);
         mgmtProduct = new MgmtProduct(bundleB);
-        mgmtUser = new MgmtUser(sqlite);
+        mgmtUser = new MgmtUser(userAdmin);
     
         Content.setLayout(contentView);
         Content.add(new Home("WELCOME CLIENT!", new java.awt.Color(255,102,51)), "home");
