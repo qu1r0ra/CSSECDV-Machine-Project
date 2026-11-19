@@ -251,9 +251,18 @@ public final class AuthService {
     public boolean verifyCurrentPassword(BundleBService.Actor actor, char[] password) {
         try {
             if (!InputValidator.isValidPasswordShape(password)) {
-                try {
-                    recordStandalone("VALIDATION_FAILURE", actor == null ? "UNKNOWN" : actor.getUsername(), "re-authentication input rejected");
-                } catch (RuntimeException ex) {
+                try (Connection c = store.open()) {
+                    c.setAutoCommit(false);
+                    try {
+                        String username = actor == null ? "UNKNOWN" : actor.getUsername();
+                        audit.record(c, "VALIDATION_FAILURE", username, "re-authentication input rejected");
+                        audit.record(c, "AUTH_FAILURE", username, "invalid re-authentication input");
+                        c.commit();
+                    } catch (Exception ex) {
+                        rollbackQuietly(c);
+                        throw ex;
+                    }
+                } catch (Exception ex) {
                     failSafeSession();
                     throw new IllegalStateException("Verification unavailable.");
                 }

@@ -198,11 +198,23 @@ public final class AuthServiceTest {
             check("FAILED".equals(scalar(f.db, "SELECT last_attempt_status FROM users WHERE username=?", "templock"))
                     && scalar(f.db, "SELECT last_attempt_at FROM users WHERE username=?", "templock") != null,
                     "attempt against a temporary lock updates the previous-attempt status and timestamp");
-            execute(f.db, "UPDATE users SET locked=0 WHERE username=?", "templock");
+            f.auth.login("admin1", GOOD.toCharArray());
+            UserAdminService.Result unlock = f.admin.setLocked(f.id("templock"), false);
+            check(unlock.isSuccess(), "authorized Admin unlocks the temporary lock through UserAdminService");
+            check("0".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username=?", "templock")),
+                    "production unlock resets the consecutive login-failure counter");
+            String blockedAt = scalar(f.db, "SELECT last_attempt_at FROM users WHERE username=?", "templock");
+            check("FAILED".equals(scalar(f.db, "SELECT last_attempt_status FROM users WHERE username=?", "templock")) && blockedAt != null,
+                    "production unlock preserves the blocked-attempt timestamp and status");
+            f.auth.logout();
             AuthService.LoginResult afterUnlock = f.auth.login("templock", GOOD.toCharArray());
-            check(afterUnlock.isSuccess() && afterUnlock.describePreviousAttempt().contains("FAILED")
-                    && afterUnlock.describePreviousAttempt().contains("Failed attempts since your last successful login: 3"),
-                    "successful login after unlock reports the blocked attempt and preserved failed-attempt count");
+            String displayedBlockedAt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
+                    .withZone(java.time.ZoneId.systemDefault()).format(java.time.Instant.parse(blockedAt));
+            check(afterUnlock.isSuccess() && afterUnlock.describePreviousAttempt().contains(displayedBlockedAt + " - FAILED"),
+                    "successful login after production unlock reports the blocked attempt timestamp and status");
+            check("SUCCESS".equals(scalar(f.db, "SELECT last_attempt_status FROM users WHERE username=?", "templock"))
+                    && scalar(f.db, "SELECT last_attempt_at FROM users WHERE username=?", "templock") != null,
+                    "successful post-unlock login stores its own timestamp and SUCCESS status");
 
             f.auth.login("client1", new char[0]);
             AuthService.LoginResult next = f.auth.login("client1", GOOD.toCharArray());
@@ -317,6 +329,15 @@ public final class AuthServiceTest {
             BundleBService.Actor actor = f.auth.currentActor();
             check(f.auth.verifyCurrentPassword(actor, GOOD.toCharArray()), "correct current password verifies");
             check(!f.auth.verifyCurrentPassword(actor, "Wrong!Pass1".toCharArray()), "wrong current password fails");
+            int validationBefore = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='client1'");
+            int authFailureBefore = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='AUTH_FAILURE' AND username='client1'");
+            check(!f.auth.verifyCurrentPassword(actor, "bad secret".toCharArray()), "malformed current password fails");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='client1'") == validationBefore + 1
+                    && count(f.db, "SELECT COUNT(*) FROM logs WHERE event='AUTH_FAILURE' AND username='client1'") == authFailureBefore + 1,
+                    "malformed re-authentication records both validation and authentication failures");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE '%bad secret%'") == 0
+                    && "0".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='client1'")),
+                    "malformed re-authentication does not log password data or increment login failures");
             check(!f.auth.verifyCurrentPassword(new BundleBService.Actor(actor.getUserId(), actor.getUsername(), actor.getRole(), actor.getSessionGeneration() + 1), GOOD.toCharArray()), "stale actor cannot re-authenticate");
             for (int i = 0; i < 4; i++) { f.auth.verifyCurrentPassword(actor, "Wrong!Pass1".toCharArray()); }
             check("2".equals(f.role("client1")) && f.auth.currentActor() != null,
@@ -719,6 +740,23 @@ public final class AuthServiceTest {
                         "failed " + detail + " audit rolls back its associated re-authentication update");
             } finally { f.close(); }
         }
+        Fixture f = new Fixture();
+        try {
+            check(f.auth.login("admin1", GOOD.toCharArray()).isSuccess(), "Admin signs in before malformed re-authentication audit failure");
+            final int[] safeFallbacks = {0};
+            f.auth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
+            execute(f.db, "CREATE TRIGGER refuse_invalid_reauth BEFORE INSERT ON logs WHEN NEW.event='AUTH_FAILURE' AND NEW.\"desc\"='invalid re-authentication input' BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
+            int validations = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='admin1'");
+            int loginFailures = Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='admin1'"));
+            boolean failed = false;
+            try { f.auth.verifyCurrentPassword(f.auth.currentActor(), "bad secret".toCharArray()); }
+            catch (IllegalStateException expected) { failed = "Verification unavailable.".equals(expected.getMessage()); }
+            check(failed && f.auth.currentActor() == null && safeFallbacks[0] == 1,
+                    "required malformed re-authentication audit failure revokes the session and invokes safe fallback");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='admin1'") == validations
+                    && Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='admin1'")) == loginFailures,
+                    "malformed re-authentication audit is atomic and does not alter the login-failure counter");
+        } finally { f.close(); }
     }
 
     // ------------------------------------------------------------------ helpers
