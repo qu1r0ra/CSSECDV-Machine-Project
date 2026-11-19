@@ -20,6 +20,7 @@ public final class AuthServiceTest {
 
     public static void main(String[] args) throws Exception {
         validatorRejectsEverythingOutsideTheWhitelists();
+        startupFailureDoesNotEscape();
         hasherIsSaltedOneWayAndRejectsMalformedValues();
         legacyPlaintextIsHashedOnInitialize();
         registrationEnforcesPolicyAndAssignsClientRole();
@@ -48,6 +49,12 @@ public final class AuthServiceTest {
     }
 
     // ------------------------------------------------------------------ validation / hashing
+
+    private static void startupFailureDoesNotEscape() {
+        Main application = new Main();
+        application.init((Path) null);
+        check(application.getFrame() == null, "failed startup remains unprivileged without throwing");
+    }
 
     private static void validatorRejectsEverythingOutsideTheWhitelists() {
         check(InputValidator.isValidUsername("client1"), "alphanumeric username accepted");
@@ -593,10 +600,10 @@ public final class AuthServiceTest {
             int rowsBeforeInjectionSearch = count(f.db, "SELECT COUNT(*) FROM logs");
             adminLogPanel.searchLogs("' OR 1=1 --");
             check(adminLogPanel.tableModel.getRowCount() == 0
-                    && count(f.db, "SELECT COUNT(*) FROM logs") == rowsBeforeInjectionSearch,
-                    "search-shaped text returns no unrelated rows and does not change stored logs");
+                    && count(f.db, "SELECT COUNT(*) FROM logs") == rowsBeforeInjectionSearch + 1,
+                    "invalid search is rejected and recorded as a validation failure");
             adminLogPanel.showAllLogs();
-            check(adminLogPanel.tableModel.getRowCount() == allRows,
+            check(adminLogPanel.tableModel.getRowCount() == allRows + 1,
                     "Show All restores the complete log view without deleting rows");
 
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'VALIDATION_FAILURE'") > 0,

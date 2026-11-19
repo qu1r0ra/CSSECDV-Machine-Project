@@ -151,6 +151,7 @@ public final class SwingAcceptanceTest {
             roleNavigation("staff", "staffHomeButton");
             roleNavigation("admin", "adminHomeButton");
             adminAuditReview();
+            unexpectedUiFailureReturnsToLogin();
             safeFallbackOnDisabledSession();
             exactLockout();
         } finally {
@@ -241,6 +242,19 @@ public final class SwingAcceptanceTest {
         gui.button("auditShowAllButton").click();
         gui.table("auditTable").requireRowCount(allRows);
         gui.button("logoutButton").click();
+    }
+
+    private void unexpectedUiFailureReturnsToLogin() throws Exception {
+        login("admin", passwords.get("admin"));
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() { throw new IllegalStateException("injected internal failure"); }
+        });
+        SwingUtilities.invokeAndWait(new Runnable() { public void run() { } });
+        require(application.auth.currentActor() == null, "unexpected UI failure revokes the active session");
+        require(componentVisible("loginButton") && !componentVisible("adminHomeButton"),
+                "unexpected UI failure returns to Login");
+        gui.dialog().optionPane().requireMessage("The request could not be completed. Please sign in again.");
+        acceptDialog();
     }
 
     private void safeFallbackOnDisabledSession() throws Exception {

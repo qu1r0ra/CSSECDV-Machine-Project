@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 public final class SqliteSecurityAudit implements SecurityAudit {
     private static final int MAX_SEARCH_LENGTH = 128;
     private static final Pattern EVENT_FILTER = Pattern.compile("[A-Za-z0-9_]{1,64}");
+    private static final Pattern SEARCH_TEXT = Pattern.compile("[A-Za-z0-9 _:-]*");
 
     private final String url;
     private final Path database;
@@ -98,7 +99,7 @@ public final class SqliteSecurityAudit implements SecurityAudit {
 
         String term = text == null ? "" : text;
         String eventFilter = event == null ? "" : event;
-        if (term.length() > MAX_SEARCH_LENGTH
+        if (term.length() > MAX_SEARCH_LENGTH || !SEARCH_TEXT.matcher(term).matches()
                 || (!eventFilter.isEmpty() && !EVENT_FILTER.matcher(eventFilter).matches())) {
             try { record("VALIDATION_FAILURE", actor.getUsername(), "audit search filter rejected"); }
             catch (RuntimeException ignored) { }
