@@ -94,7 +94,7 @@ Code revision `3cc248287f1df93c582cd84293c48140957dd3f9` binds malformed reauthe
 | Standalone package Swing smoke | `ant '-Dbuild.dir=build-package' '-Ddist.dir=dist-package' '-Ddistribution.dir=submission/distribution' '-Ddemo.credentials=C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt' -f build.xml test-distribution` | BUILD SUCCESSFUL; packaged UI workflows used an isolated database copy, and the tracked demo database remained unchanged. |
 | Patch whitespace check | `git diff --check` | Passed after the code changes. |
 
-The final tracked distribution SHA-256 is `CSSECDV.jar` `d466e5f70214a672f05764783d9754cbacbdd109d0b8a2cb9daf4bbb140ac33a`, `database.db` `4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7`, and `lib/sqlite-jdbc-3.23.1.jar` `d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331`. The distribution target passed its before/after SHA-256 preservation check; an independent post-run hash matched the recorded database hash.
+The distribution SHA-256 at that earlier revision was `CSSECDV.jar` `d466e5f70214a672f05764783d9754cbacbdd109d0b8a2cb9daf4bbb140ac33a`, `database.db` `4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7`, and `lib/sqlite-jdbc-3.23.1.jar` `d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331`. The distribution target passed its before/after SHA-256 preservation check; an independent post-run hash matched the recorded database hash.
 
 The first issue #17 acceptance batch passed on Windows with JDK 21.0.13 and Ant 1.10.18. The Swing target ran non-headless on the real desktop display; AssertJ Swing's AWT Robot drove the actual Swing controls. Its UI database was temporary and isolated. The final reauthentication repair and regression rerun are recorded above; the earlier assertion count below is historical.
 
@@ -119,13 +119,15 @@ app/submission/distribution/ is the standalone deliverable. It contains exactly 
 
 | Runtime artifact | SHA-256 |
 | --- | --- |
-| CSSECDV.jar | d466e5f70214a672f05764783d9754cbacbdd109d0b8a2cb9daf4bbb140ac33a |
+| CSSECDV.jar | 22721abb4a0264b2215d38fa874f4ddc2ed811b8cda7d5fbd3558202d19265d4 |
 | database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
 | lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
 
 Operator demo passwords are generated for the prepared database and held only in C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt, outside the checkout with an owner/system/admin-only ACL. They are not copied into project resources or the tracked package. The seeder refuses to overwrite an existing database. The generated app/fixtures/demo.db staging copy is not part of the final tracked artifacts; the distribution copy is the prepared DB.
 
 ### Checklist readiness against this candidate
+
+Final checklist follow-up at source revision `d00a50c`: audit search rejects input outside its documented allowlist and records validation failures. Unexpected startup failures produce a generic error and leave no active session; an unexpected Swing event-handler failure revokes the session, returns to Login, and displays a generic error. The integrated `test-regression-final-17` and `jar` targets passed using isolated `build-tdd`/`dist-tdd` outputs (Bundle A: 348 assertions; Bundle B and Swing passed). The packaged distribution smoke test also passed using a disposable database copy and confirmed that the delivered database was unchanged. The JAR in the distribution table above is the rebuilt artifact from that run. These specific failure cases strengthen 2.4.3 evidence; they do not establish that every controller and database method handles every unexpected event, so the item remains unchecked.
 
 Only criteria with recorded implementation and behavior evidence are checked. 28 of 29 scored items are evidenced complete. The one unchecked row remains an open review gap; do not count it as complete.
 
@@ -154,7 +156,7 @@ Only criteria with recorded implementation and behavior evidence are checked. 28
 | [x] | 2.3.4 | Runtime data queries use parameterized providers; the former unsafe compatibility CRUD surface is retired, and audit filters are parameterized. |
 | [x] | 2.4.1 | Production sources no longer print stack traces or provider details to end users; failure paths return safe outcomes. |
 | [x] | 2.4.2 | UI receives fixed, user-friendly service messages; provider details are not shown. |
-| [ ] | 2.4.3 | Still open: tests cover an unexpected account-table query failure, all listed required account-admin audit mutation failures, both re-authentication audit outcomes, provider failures, and a SQLite audit-query failure through `SQLite.getLogs` and the safe `MgmtLogs` UI message. This does not prove a universal boundary around every controller and database method. |
+| [ ] | 2.4.3 | Still open: tests now cover startup and Swing event-handler failures, an unexpected account-table query failure, all listed required account-admin audit mutation failures, both re-authentication audit outcomes, provider failures, and a SQLite audit-query failure through `SQLite.getLogs` and the safe `MgmtLogs` UI message. This does not prove a universal boundary around every controller and database method. |
 | [x] | 2.4.4 | B provider failure paths invoke the safe fallback; Swing verifies a revoked/disabled session reaches the Login panel. |
 | [x] | 2.5.1 | Role checks restrict account administration; audit search uses the trusted app session bound to the same database and denies a foreign database Admin; the UI allows Admin search/show-all and exposes no permanent audit-delete operation. |
 | [x] | 2.5.2 | A/B provider tests verify timestamped validation events and persistence. |
