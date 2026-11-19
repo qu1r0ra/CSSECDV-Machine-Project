@@ -1,6 +1,6 @@
 # Submission package
 
-The `distribution` folder contains the standalone demo application.
+The `distribution` folder contains the standalone demo application. The release ZIP also includes `DEMO-CREDENTIALS.txt` at its root for the four prepared demo accounts.
 
 ## Run the distribution
 
@@ -11,7 +11,7 @@ Set-Location .\distribution
 java -jar .\CSSECDV.jar
 ```
 
-Keep `database.db` and `lib/sqlite-jdbc-3.23.1.jar` beside the JAR as packaged. The application opens `database.db` relative to its working directory. The database contains one Admin, Manager, Staff, and Client account with salted password hashes, plus two catalog products. It has no purchase/history test rows. Generated demo passwords are not included here: the seeder writes them to a separate operator-only file outside the checkout.
+Keep `database.db` and `lib/sqlite-jdbc-3.23.1.jar` beside the JAR as packaged. The application opens `database.db` relative to its working directory. The database contains one Admin, Manager, Staff, and Client account with salted password hashes, plus two catalog products. It has no purchase/history test rows. The release package includes the generated demo passwords in `DEMO-CREDENTIALS.txt`; that file is kept outside the source repository.
 
 ## Rebuild and test
 
