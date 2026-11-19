@@ -61,9 +61,16 @@ public final class UserAdminService {
             if (!auth.verifyCurrentPassword(admin, adminPassword)) { return new Result(false, REAUTH); }
             if (!stillSame(admin)) { return new Result(false, DENIED); }
             try (Connection c = store.open()) {
-                boolean ok = store.updateRole(c, userId, role.intValue());
-                audit(admin, "role change user " + userId + " -> " + role + (ok ? "" : " (not found)"));
-                return ok ? new Result(true, "Role updated.") : new Result(false, FAILED);
+                c.setAutoCommit(false);
+                try {
+                    boolean ok = store.updateRole(c, userId, role.intValue());
+                    audit(c, admin, "role change user " + userId + " -> " + role + (ok ? "" : " (not found)"));
+                    c.commit();
+                    return ok ? new Result(true, "Role updated.") : new Result(false, FAILED);
+                } catch (Exception ex) {
+                    rollback(c);
+                    return new Result(false, FAILED);
+                }
             }
         } catch (Exception ex) {
             return new Result(false, FAILED);
@@ -76,9 +83,16 @@ public final class UserAdminService {
             if (admin == null) { return new Result(false, DENIED); }
             if (!InputValidator.isValidId(userId) || userId == admin.getUserId()) { return invalid(admin, "lock change"); }
             try (Connection c = store.open()) {
-                boolean ok = store.updateLocked(c, userId, locked);
-                audit(admin, (locked ? "lock" : "unlock") + " user " + userId + (ok ? "" : " (not found)"));
-                return ok ? new Result(true, locked ? "Account locked." : "Account unlocked.") : new Result(false, FAILED);
+                c.setAutoCommit(false);
+                try {
+                    boolean ok = store.updateLocked(c, userId, locked);
+                    audit(c, admin, (locked ? "lock" : "unlock") + " user " + userId + (ok ? "" : " (not found)"));
+                    c.commit();
+                    return ok ? new Result(true, locked ? "Account locked." : "Account unlocked.") : new Result(false, FAILED);
+                } catch (Exception ex) {
+                    rollback(c);
+                    return new Result(false, FAILED);
+                }
             }
         } catch (Exception ex) {
             return new Result(false, FAILED);
@@ -93,9 +107,16 @@ public final class UserAdminService {
             if (!auth.verifyCurrentPassword(admin, adminPassword)) { return new Result(false, REAUTH); }
             if (!stillSame(admin)) { return new Result(false, DENIED); }
             try (Connection c = store.open()) {
-                boolean ok = store.delete(c, userId);
-                audit(admin, "delete user " + userId + (ok ? "" : " (not found)"));
-                return ok ? new Result(true, "User deleted.") : new Result(false, FAILED);
+                c.setAutoCommit(false);
+                try {
+                    boolean ok = store.delete(c, userId);
+                    audit(c, admin, "delete user " + userId + (ok ? "" : " (not found)"));
+                    c.commit();
+                    return ok ? new Result(true, "User deleted.") : new Result(false, FAILED);
+                } catch (Exception ex) {
+                    rollback(c);
+                    return new Result(false, FAILED);
+                }
             }
         } catch (Exception ex) {
             return new Result(false, FAILED);
@@ -108,15 +129,25 @@ public final class UserAdminService {
             if (admin == null) { return new Result(false, DENIED); }
             if (!InputValidator.isValidId(userId)) { return invalid(admin, "password change"); }
             String violation = InputValidator.passwordPolicyViolation(newPassword);
-            if (violation != null) { audit(admin, "validation failure: password change"); return new Result(false, violation); }
-            if (!InputValidator.sameSecret(newPassword, confirm)) { return new Result(false, "Passwords do not match."); }
+            if (violation != null) { validationFailure(admin, "password change"); return new Result(false, violation); }
+            if (!InputValidator.sameSecret(newPassword, confirm)) {
+                validationFailure(admin, "password confirmation mismatch");
+                return new Result(false, "Passwords do not match.");
+            }
             if (!auth.verifyCurrentPassword(admin, adminPassword)) { return new Result(false, REAUTH); }
             if (!stillSame(admin)) { return new Result(false, DENIED); }
             String hash = PasswordHasher.hash(newPassword);
             try (Connection c = store.open()) {
-                boolean ok = store.updatePassword(c, userId, hash);
-                audit(admin, "password change user " + userId + (ok ? "" : " (not found)"));
-                return ok ? new Result(true, "Password updated.") : new Result(false, FAILED);
+                c.setAutoCommit(false);
+                try {
+                    boolean ok = store.updatePassword(c, userId, hash);
+                    audit(c, admin, "password change user " + userId + (ok ? "" : " (not found)"));
+                    c.commit();
+                    return ok ? new Result(true, "Password updated.") : new Result(false, FAILED);
+                } catch (Exception ex) {
+                    rollback(c);
+                    return new Result(false, FAILED);
+                }
             }
         } catch (Exception ex) {
             return new Result(false, FAILED);
@@ -128,9 +159,19 @@ public final class UserAdminService {
     }
 
     private Result invalid(BundleBService.Actor admin, String what) {
-        audit(admin, "validation failure: " + what);
+        validationFailure(admin, what);
         return new Result(false, INVALID);
     }
 
-    private void audit(BundleBService.Actor admin, String detail) { auth.audit().record("USER_ADMIN", admin.getUsername(), detail); }
+    private void validationFailure(BundleBService.Actor admin, String what) {
+        auth.audit().record("VALIDATION_FAILURE", admin.getUsername(), what + " input rejected");
+    }
+
+    private void audit(Connection connection, BundleBService.Actor admin, String detail) {
+        auth.audit().record(connection, "USER_ADMIN", admin.getUsername(), detail);
+    }
+
+    private static void rollback(Connection connection) {
+        try { connection.rollback(); } catch (java.sql.SQLException ignored) { }
+    }
 }

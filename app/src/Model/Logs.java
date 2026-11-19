@@ -8,6 +8,7 @@ package Model;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Date;
 
 /**
@@ -44,9 +45,10 @@ public class Logs {
         this.username = username;
         this.desc = desc;
         try {
-            this.timestamp = new Timestamp(dateformat.parse(timestamp).getTime());
-        } catch (ParseException ex) {
-            ex.printStackTrace();
+            this.timestamp = Timestamp.from(Instant.parse(timestamp));
+        } catch (RuntimeException ex) {
+            try { this.timestamp = new Timestamp(dateformat.parse(timestamp).getTime()); }
+            catch (ParseException ignored) { this.timestamp = null; }
         }
     }
     

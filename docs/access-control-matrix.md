@@ -1,6 +1,6 @@
 # Access control matrix
 
-Status: Bundle B permission mapping from [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6). Bundle A authentication/authorization code and the B gateway are now present on `main` (`22a690f`), but actual-provider integrated acceptance and live Swing visibility remain unverified under [issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9). This table maps B features only; add every remaining application feature before claiming a complete access matrix.
+Status: Bundle B permissions plus the shared audit and account-management service permissions from [issue #16](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/16). These service checks use current account/session state. Interactive log search controls and the whole-application walkthrough remain under [issue #17](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/17); this is not yet a complete project-wide feature matrix.
 
 | Feature / Resource | Unregistered | Disabled (1) | Client (2) | Staff (3) | Manager (4) | Admin (5) |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -11,5 +11,9 @@ Status: Bundle B permission mapping from [issue #6](https://github.com/qu1r0ra/C
 | Confirm a purchase | No | No | Yes | No | No | No |
 | Read own purchase history | No | No | Yes | No | No | No |
 | Read all purchase history, including uncertain-owner legacy rows | No | No | No | No | Yes | No |
+| Review/search security logs | No | No | No | No | No | Yes |
+| Manage user accounts | No | No | No | No | No | Yes |
+| Register as Client | Yes | Yes | Yes | Yes | Yes | Yes |
+| Sign-in attempt (authentication is available) | Yes | Yes | Yes | Yes | Yes | Yes |
 
-Automatic audit append is performed only as part of eligible B operations or rejected/denied attempts; it is not a user-readable feature in this B module. The system-wide Admin log viewer, user management, authentication, registration, and other Bundle C resources are outside this matrix and remain pending their owners' integration and verification.
+Audit append is automatic and does not grant permission to read or manage logs. Failed sign-in and registration events are recorded for public authentication flows; protected log review and account management require a currently valid Role 5 actor, including on direct service calls. No role can permanently clear audit records. Other application features remain to be added before this matrix can be called exhaustive.

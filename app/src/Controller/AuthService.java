@@ -32,9 +32,9 @@ public final class AuthService {
     private volatile Runnable sessionRevoked = new Runnable() { public void run() { } };
 
     public AuthService(Path database, SecurityAudit audit) {
-        if (database == null) { throw new IllegalArgumentException("database is required"); }
+        if (database == null || audit == null) { throw new IllegalArgumentException("database and audit provider are required"); }
         this.store = new AccountStore(database);
-        this.audit = audit == null ? SecurityAudit.NONE : audit;
+        this.audit = audit;
     }
 
     AccountStore store() { return store; }
@@ -59,19 +59,27 @@ public final class AuthService {
             String hash = PasswordHasher.hash(password);
             try (Connection c = store.open()) {
                 c.setAutoCommit(false);
-                if (store.findByUsername(c, username) != null) {
-                    c.rollback();
-                    audit.record("REGISTRATION", username, "rejected: username unavailable");
+                try {
+                    if (store.findByUsername(c, username) != null) {
+                        audit.record(c, "REGISTRATION", username, "rejected: username unavailable");
+                        c.commit();
+                        return RegistrationResult.failure(REGISTRATION_FAILURE);
+                    }
+                    store.insertClient(c, username, hash);
+                    audit.record(c, "REGISTRATION", username, "success");
+                    c.commit();
+                    return RegistrationResult.success();
+                } catch (SQLException ex) {
+                    rollbackQuietly(c);
+                    if (AccountStore.isConstraint(ex)) {
+                        recordStandalone("REGISTRATION", username, "rejected: username unavailable");
+                    }
+                    return RegistrationResult.failure(REGISTRATION_FAILURE);
+                } catch (RuntimeException ex) {
+                    rollbackQuietly(c);
                     return RegistrationResult.failure(REGISTRATION_FAILURE);
                 }
-                store.insertClient(c, username, hash);
-                c.commit();
-            } catch (SQLException ex) {
-                audit.record("REGISTRATION", username, AccountStore.isConstraint(ex) ? "rejected: username unavailable" : "failed");
-                return RegistrationResult.failure(REGISTRATION_FAILURE);
             }
-            audit.record("REGISTRATION", username, "success");
-            return RegistrationResult.success();
         } catch (Exception ex) {
             return RegistrationResult.failure(REGISTRATION_FAILURE);
         } finally {
@@ -80,8 +88,23 @@ public final class AuthService {
     }
 
     private RegistrationResult rejected(String username, String message) {
-        audit.record("VALIDATION_FAILURE", InputValidator.isValidUsername(username) ? username : "UNKNOWN", "registration input rejected");
+        recordStandalone("VALIDATION_FAILURE", InputValidator.isValidUsername(username) ? username : "UNKNOWN", "registration input rejected");
         return RegistrationResult.failure(message);
+    }
+
+    private void recordStandalone(String event, String username, String detail) {
+        try (Connection c = store.open()) {
+            c.setAutoCommit(false);
+            try {
+                audit.record(c, event, username, detail);
+                c.commit();
+            } catch (RuntimeException ex) {
+                rollbackQuietly(c);
+                throw ex;
+            }
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Audit record is unavailable.");
+        }
     }
 
     // ---------------------------------------------------------------- login
@@ -94,30 +117,37 @@ public final class AuthService {
             }
             try (Connection c = store.open()) {
                 c.setAutoCommit(false);
-                AccountStore.Account a = store.findByUsername(c, username);
-                if (a == null) {
-                    PasswordHasher.verifyAgainstDummy(password);
-                    audit.record("AUTH_FAILURE", username, "unknown account");
-                    return LoginResult.failed();
-                }
-                boolean matches = PasswordHasher.verify(password, a.passwordHash);
-                if (!a.isActive()) {
-                    audit.record("AUTH_FAILURE", a.username, "account disabled or locked");
-                    return LoginResult.failed();
-                }
-                String now = Instant.now().toString();
-                if (!matches) {
-                    boolean disabled = store.recordFailure(c, a.id, now, true);
+                try {
+                    AccountStore.Account a = store.findByUsername(c, username);
+                    if (a == null) {
+                        PasswordHasher.verifyAgainstDummy(password);
+                        audit.record(c, "AUTH_FAILURE", username, "unknown account");
+                        c.commit();
+                        return LoginResult.failed();
+                    }
+                    boolean matches = PasswordHasher.verify(password, a.passwordHash);
+                    if (!a.isActive()) {
+                        audit.record(c, "AUTH_FAILURE", a.username, "account disabled or locked");
+                        c.commit();
+                        return LoginResult.failed();
+                    }
+                    String now = Instant.now().toString();
+                    if (!matches) {
+                        boolean disabled = store.recordFailure(c, a.id, now, true);
+                        audit.record(c, "AUTH_FAILURE", a.username, "invalid password");
+                        if (disabled) { audit.record(c, "ACCOUNT_DISABLED", a.username, "role set to 1 after " + AccountStore.MAX_FAILED_ATTEMPTS + " consecutive failures"); }
+                        c.commit();
+                        return LoginResult.failed();
+                    }
+                    store.recordSuccess(c, a.id, now, PasswordHasher.needsRehash(a.passwordHash) ? PasswordHasher.hash(password) : null);
+                    audit.record(c, "AUTH_SUCCESS", a.username, "login");
                     c.commit();
-                    audit.record("AUTH_FAILURE", a.username, "invalid password");
-                    if (disabled) { audit.record("ACCOUNT_DISABLED", a.username, "role set to 1 after " + AccountStore.MAX_FAILED_ATTEMPTS + " consecutive failures"); }
-                    return LoginResult.failed();
+                    session = new Session(a.id, a.username, a.role, generations.incrementAndGet());
+                    return LoginResult.success(a.username, a.role, format(a.lastAttemptAt), a.lastAttemptStatus, a.failedAttempts);
+                } catch (Exception ex) {
+                    rollbackQuietly(c);
+                    throw ex;
                 }
-                store.recordSuccess(c, a.id, now, PasswordHasher.needsRehash(a.passwordHash) ? PasswordHasher.hash(password) : null);
-                c.commit();
-                session = new Session(a.id, a.username, a.role, generations.incrementAndGet());
-                audit.record("AUTH_SUCCESS", a.username, "login");
-                return LoginResult.success(a.username, a.role, format(a.lastAttemptAt), a.lastAttemptStatus, a.failedAttempts);
             }
         } catch (Exception ex) {
             session = null;
@@ -169,7 +199,7 @@ public final class AuthService {
     public boolean verifyCurrentPassword(BundleBService.Actor actor, char[] password) {
         try {
             if (!InputValidator.isValidPasswordShape(password)) {
-                audit.record("VALIDATION_FAILURE", actor == null ? "UNKNOWN" : actor.getUsername(), "re-authentication input rejected");
+                recordStandalone("VALIDATION_FAILURE", actor == null ? "UNKNOWN" : actor.getUsername(), "re-authentication input rejected");
                 return false;
             }
             Session s = session;
@@ -177,21 +207,30 @@ public final class AuthService {
             if (s == null || !sameSession(actor, now)) { return false; }
             try (Connection c = store.open()) {
                 c.setAutoCommit(false);
-                AccountStore.Account a = store.findById(c, s.userId);
-                if (a == null || !a.isActive()) { revoke(s); return false; }
-                if (PasswordHasher.verify(password, a.passwordHash)) {
-                    store.resetFailures(c, a.id);
+                try {
+                    AccountStore.Account a = store.findById(c, s.userId);
+                    if (a == null || !a.isActive()) { rollbackQuietly(c); revoke(s); return false; }
+                    if (PasswordHasher.verify(password, a.passwordHash)) {
+                        store.resetFailures(c, a.id);
+                        audit.record(c, "AUTH_SUCCESS", a.username, "re-authentication");
+                        c.commit();
+                        return true;
+                    }
+                    boolean disabled = store.recordFailure(c, a.id, Instant.now().toString(), false);
+                    audit.record(c, "AUTH_FAILURE", a.username, "re-authentication failed");
+                    if (disabled) {
+                        audit.record(c, "ACCOUNT_DISABLED", a.username, "role set to 1 after " + AccountStore.MAX_FAILED_ATTEMPTS + " consecutive failures");
+                    }
                     c.commit();
-                    return true;
+                    if (disabled) { revoke(s); }
+                    return false;
+                } catch (SQLException ex) {
+                    rollbackQuietly(c);
+                    throw ex;
+                } catch (RuntimeException ex) {
+                    rollbackQuietly(c);
+                    throw ex;
                 }
-                boolean disabled = store.recordFailure(c, a.id, Instant.now().toString(), false);
-                c.commit();
-                audit.record("AUTH_FAILURE", a.username, "re-authentication failed");
-                if (disabled) {
-                    audit.record("ACCOUNT_DISABLED", a.username, "role set to 1 after " + AccountStore.MAX_FAILED_ATTEMPTS + " consecutive failures");
-                    revoke(s);
-                }
-                return false;
             }
         } catch (SQLException ex) {
             throw new IllegalStateException("Verification unavailable");
@@ -212,6 +251,10 @@ public final class AuthService {
     }
 
     static void clear(char[] value) { if (value != null) { Arrays.fill(value, '\0'); } }
+
+    private static void rollbackQuietly(Connection c) {
+        try { c.rollback(); } catch (SQLException ignored) { }
+    }
 
     // ---------------------------------------------------------------- results
 

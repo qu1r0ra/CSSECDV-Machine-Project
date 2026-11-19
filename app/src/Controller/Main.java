@@ -31,7 +31,9 @@ public class Main {
         // Initialize a driver object
         sqlite = new SQLite();
         Path databasePath = Paths.get("database.db");
-        SecurityAudit audit = SecurityAudit.NONE; // Logging bundle: supply an implementation that writes to the logs table
+        SqliteSecurityAudit audit = new SqliteSecurityAudit(databasePath);
+        try { audit.initialize(); }
+        catch (IllegalStateException ignored) { /* Required audit writes fail closed if storage is unavailable. */ }
         auth = new AuthService(databasePath, audit);
         try { auth.initialize(); }
         catch (IllegalStateException ignored) { /* login then fails closed with a generic message */ }
@@ -51,7 +53,6 @@ public class Main {
 //        
 //        // Drop users table if needed
 //        sqlite.dropHistoryTable();
-//        sqlite.dropLogsTable();
 //        sqlite.dropProductTable();
 //        sqlite.dropUserTable();
 //        
@@ -95,7 +96,7 @@ public class Main {
 //        }
 //        
 //        // Get users
-//        ArrayList<Logs> logs = sqlite.getLogs();
+//        ArrayList<Logs> logs = sqlite.getLogs(access, "", "");
 //        for(int nCtr = 0; nCtr < logs.size(); nCtr++){
 //            System.out.println("===== Logs " + logs.get(nCtr).getId() + " =====");
 //            System.out.println(" Username: " + logs.get(nCtr).getEvent());

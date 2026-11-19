@@ -1,5 +1,6 @@
 package Controller;
 
+import Model.Logs;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -31,6 +32,10 @@ public final class AuthServiceTest {
         reauthenticationCountsTowardLockoutAndEndsTheSession();
         adminOperationsAreAuthorizedValidatedAndReauthenticated();
         bundleBWorksThroughTheRealGateway();
+        authenticationRollsBackWhenAuditPersistenceFails();
+        registrationRollsBackWhenAuditPersistenceFails();
+        userAdministrationRollsBackWhenAuditPersistenceFails();
+        auditProviderPersistsFiltersAndRestrictsLogReview();
         failsClosedWhenStorageIsUnavailable();
         System.out.println("Bundle A behavior checks passed (" + checks + " assertions).");
     }
@@ -319,6 +324,138 @@ public final class AuthServiceTest {
             try { auth.initialize(); } catch (IllegalStateException expected) { threw = !expected.getMessage().contains("sqlite"); }
             check(threw, "initialize reports a generic failure");
         } finally { Files.deleteIfExists(dir); }
+    }
+
+    private static void authenticationRollsBackWhenAuditPersistenceFails() throws Exception {
+        Fixture f = new Fixture();
+        try {
+            SecurityAudit unavailable = new SecurityAudit() {
+                public void record(String event, String username, String detail) {
+                    throw new IllegalStateException("audit storage unavailable");
+                }
+                public void record(Connection connection, String event, String username, String detail) {
+                    throw new IllegalStateException("audit storage unavailable");
+                }
+            };
+            AuthService auth = new AuthService(f.db, unavailable);
+            auth.initialize();
+
+            AuthService.LoginResult failed = auth.login("client1", "Wrong!Pass1".toCharArray());
+            check(failed.getStatus() == AuthService.LoginResult.Status.ERROR,
+                    "failed sign-in does not report success when its required audit write fails");
+            check("0".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username = ?", "client1")),
+                    "failed sign-in counter rolls back when audit persistence fails");
+            check(scalar(f.db, "SELECT last_attempt_at FROM users WHERE username = ?", "client1") == null,
+                    "failed attempt state rolls back when its audit record cannot persist");
+
+            AuthService.LoginResult success = auth.login("client1", GOOD.toCharArray());
+            check(success.getStatus() == AuthService.LoginResult.Status.ERROR && auth.currentActor() == null,
+                    "successful credentials do not create a session when audit persistence fails");
+            check(scalar(f.db, "SELECT last_attempt_at FROM users WHERE username = ?", "client1") == null,
+                    "successful attempt state rolls back when audit persistence fails");
+
+            SqliteSecurityAudit recoveredAudit = new SqliteSecurityAudit(f.db);
+            recoveredAudit.initialize();
+            AuthService recovered = new AuthService(f.db, recoveredAudit);
+            recovered.initialize();
+            check(recovered.login("client1", GOOD.toCharArray()).isSuccess(),
+                    "sign-in succeeds after audit storage recovers");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'AUTH_SUCCESS'") == 1,
+                    "the recovered sign-in is persisted exactly once");
+        } finally { f.close(); }
+    }
+
+    private static void auditProviderPersistsFiltersAndRestrictsLogReview() throws Exception {
+        Fixture f = new Fixture();
+        try {
+            SqliteSecurityAudit audit = new SqliteSecurityAudit(f.db);
+            audit.initialize();
+            AuthService admin = new AuthService(f.db, audit);
+            admin.initialize();
+            admin.login("bad name", GOOD.toCharArray());
+            check(!admin.login("admin1", "Wrong!Pass1".toCharArray()).isSuccess(), "invalid sign-in is denied");
+            check(admin.login("admin1", GOOD.toCharArray()).isSuccess(), "admin can sign in after a recorded failure");
+            BundleBService.Actor adminActor = admin.currentActor();
+            check(admin.verifyCurrentPassword(adminActor, GOOD.toCharArray()), "valid re-authentication succeeds");
+            check(!admin.verifyCurrentPassword(adminActor, "Wrong!Pass1".toCharArray()), "invalid re-authentication is denied");
+
+            List<Logs> matching = audit.search(new AccessControl(admin), "invalid password", "AUTH_FAILURE");
+            check(matching.size() == 1 && "admin1".equals(matching.get(0).getUsername()),
+                    "Admin search filters persisted audit events by text and event type");
+            check(matching.get(0).getTimestamp() != null, "persisted ISO audit timestamps are readable");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'VALIDATION_FAILURE'") > 0,
+                    "invalid authentication input is persisted as a validation event");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'AUTH_SUCCESS'") >= 2
+                    && count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'AUTH_FAILURE'") >= 2,
+                    "login and re-authentication successes and failures are persisted");
+            check(audit.search(new AccessControl(admin), "' OR 1=1 --", null).isEmpty(),
+                    "search text is treated as data, not SQL");
+            check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE ?", "%" + GOOD + "%")),
+                    "audit records do not contain submitted credentials");
+
+            AuthService client = new AuthService(f.db, audit);
+            client.initialize();
+            check(client.login("client1", GOOD.toCharArray()).isSuccess(), "client can sign in for denied-review test");
+            check(audit.search(new AccessControl(client), "", null).isEmpty(),
+                    "non-admin direct log review returns no records");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'ACCESS_DENIED'") > 0,
+                    "unauthorized log review is audited");
+            check(audit.search(null, "", null).isEmpty(), "direct review without an access provider is denied");
+
+            int beforeUpgrade = count(f.db, "SELECT COUNT(*) FROM logs");
+            audit.initialize();
+            check(count(f.db, "SELECT COUNT(*) FROM logs") == beforeUpgrade && count(f.db, "SELECT COUNT(*) FROM users") == 5,
+                    "repeated audit initialization preserves logs and existing application data");
+        } finally { f.close(); }
+    }
+
+    private static void registrationRollsBackWhenAuditPersistenceFails() throws Exception {
+        Fixture f = new Fixture();
+        try {
+            SecurityAudit unavailableForRegistration = new SecurityAudit() {
+                public void record(String event, String username, String detail) {
+                    throw new IllegalStateException("audit storage unavailable");
+                }
+                public void record(Connection connection, String event, String username, String detail) {
+                    throw new IllegalStateException("audit storage unavailable");
+                }
+            };
+            AuthService auth = new AuthService(f.db, unavailableForRegistration);
+            auth.initialize();
+
+            AuthService.RegistrationResult result = auth.register("newclient", GOOD.toCharArray(), GOOD.toCharArray());
+            check(!result.isSuccess(), "registration reports failure when its required audit write fails");
+            check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM users WHERE username = ?", "newclient")),
+                    "new account creation rolls back when its audit record cannot persist");
+        } finally { f.close(); }
+    }
+
+    private static void userAdministrationRollsBackWhenAuditPersistenceFails() throws Exception {
+        Fixture f = new Fixture();
+        try {
+            final SqliteSecurityAudit backing = new SqliteSecurityAudit(f.db);
+            backing.initialize();
+            SecurityAudit unavailableForAdminChanges = new SecurityAudit() {
+                public void record(String event, String username, String detail) {
+                    if ("USER_ADMIN".equals(event)) { throw new IllegalStateException("audit storage unavailable"); }
+                    backing.record(event, username, detail);
+                }
+                public void record(Connection connection, String event, String username, String detail) {
+                    if ("USER_ADMIN".equals(event)) { throw new IllegalStateException("audit storage unavailable"); }
+                    backing.record(connection, event, username, detail);
+                }
+            };
+            AuthService auth = new AuthService(f.db, unavailableForAdminChanges);
+            auth.initialize();
+            check(auth.login("admin1", GOOD.toCharArray()).isSuccess(), "admin can sign in while the audit provider is available for authentication");
+            UserAdminService admin = new UserAdminService(auth, new AccessControl(auth));
+
+            UserAdminService.Result result = admin.changeRole(f.id("client2"), "3", GOOD.toCharArray());
+            check(!result.isSuccess(), "account change reports failure when its required audit write fails");
+            check("2".equals(f.role("client2")), "role change rolls back when its audit record cannot persist");
+            check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'USER_ADMIN'")),
+                    "failed account change does not leave a success audit record");
+        } finally { f.close(); }
     }
 
     // ------------------------------------------------------------------ helpers

@@ -10,12 +10,14 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public class SQLite {
     
     public int DEBUG_MODE = 0;
     String driverURL = "jdbc:sqlite:" + "database.db";
+    private final SqliteSecurityAudit securityAudit = new SqliteSecurityAudit(Paths.get("database.db"));
     
     public void createNewDatabase() {
         try (Connection conn = DriverManager.getConnection(driverURL)) {
@@ -106,18 +108,6 @@ public class SQLite {
             Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
             System.out.println("Table history in database.db dropped.");
-        } catch (Exception ex) {
-            System.out.print(ex);
-        }
-    }
-    
-    public void dropLogsTable() {
-        String sql = "DROP TABLE IF EXISTS logs;";
-
-        try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement()) {
-            stmt.execute(sql);
-            System.out.println("Table logs in database.db dropped.");
         } catch (Exception ex) {
             System.out.print(ex);
         }
@@ -215,25 +205,8 @@ public class SQLite {
         return histories;
     }
     
-    public ArrayList<Logs> getLogs(){
-        String sql = "SELECT id, event, username, desc, timestamp FROM logs";
-        ArrayList<Logs> logs = new ArrayList<Logs>();
-        
-        try (Connection conn = DriverManager.getConnection(driverURL);
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql)){
-            
-            while (rs.next()) {
-                logs.add(new Logs(rs.getInt("id"),
-                                   rs.getString("event"),
-                                   rs.getString("username"),
-                                   rs.getString("desc"),
-                                   rs.getString("timestamp")));
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return logs;
+    public ArrayList<Logs> getLogs(AccessControl access, String text, String event){
+        return new ArrayList<Logs>(securityAudit.search(access, text, event));
     }
     
     ArrayList<Product> getProduct(){

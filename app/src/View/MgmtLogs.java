@@ -41,7 +41,7 @@ public class MgmtLogs extends javax.swing.JPanel {
         
 //      LOAD CONTENTS
         if(!access.check(AccessControl.Feature.VIEW_LOGS)){ return; }
-        ArrayList<Logs> logs = sqlite.getLogs();
+        ArrayList<Logs> logs = sqlite.getLogs(access, "", "");
         for(int nCtr = 0; nCtr < logs.size(); nCtr++){
             tableModel.addRow(new Object[]{
                 logs.get(nCtr).getEvent(), 
