@@ -1,6 +1,8 @@
 package Controller;
 
 import Model.Logs;
+import View.MgmtLogs;
+import java.util.ArrayList;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -383,6 +385,31 @@ public final class AuthServiceTest {
             check(matching.size() == 1 && "admin1".equals(matching.get(0).getUsername()),
                     "Admin search filters persisted audit events by text and event type");
             check(matching.get(0).getTimestamp() != null, "persisted ISO audit timestamps are readable");
+
+            final SqliteSecurityAudit uiAudit = audit;
+            SQLite uiStore = new SQLite() {
+                @Override public ArrayList<Logs> getLogs(AccessControl access, String text, String event) {
+                    return new ArrayList<Logs>(uiAudit.search(access, text, event));
+                }
+            };
+            MgmtLogs adminLogPanel = new MgmtLogs(uiStore, new AccessControl(admin));
+            adminLogPanel.init();
+            int allRows = adminLogPanel.tableModel.getRowCount();
+            check(allRows == count(f.db, "SELECT COUNT(*) FROM logs"),
+                    "Admin log panel initially displays the persisted rows");
+            adminLogPanel.searchLogs("invalid password");
+            check(adminLogPanel.tableModel.getRowCount() == 1
+                    && "AUTH_FAILURE".equals(adminLogPanel.tableModel.getValueAt(0, 0)),
+                    "Admin log panel displays the requested filtered rows");
+            int rowsBeforeInjectionSearch = count(f.db, "SELECT COUNT(*) FROM logs");
+            adminLogPanel.searchLogs("' OR 1=1 --");
+            check(adminLogPanel.tableModel.getRowCount() == 0
+                    && count(f.db, "SELECT COUNT(*) FROM logs") == rowsBeforeInjectionSearch,
+                    "search-shaped text returns no unrelated rows and does not change stored logs");
+            adminLogPanel.showAllLogs();
+            check(adminLogPanel.tableModel.getRowCount() == allRows,
+                    "Show All restores the complete log view without deleting rows");
+
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'VALIDATION_FAILURE'") > 0,
                     "invalid authentication input is persisted as a validation event");
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'AUTH_SUCCESS'") >= 2
@@ -390,6 +417,13 @@ public final class AuthServiceTest {
                     "login and re-authentication successes and failures are persisted");
             check(audit.search(new AccessControl(admin), "' OR 1=1 --", null).isEmpty(),
                     "search text is treated as data, not SQL");
+            int beforeInvalidEventFilter = count(f.db, "SELECT COUNT(*) FROM logs");
+            int failedAuthBeforeInvalidFilter = count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'AUTH_FAILURE'");
+            check(audit.search(new AccessControl(admin), "", "AUTH_FAILURE OR 1=1").isEmpty(),
+                    "invalid event filters are rejected without returning rows");
+            check(count(f.db, "SELECT COUNT(*) FROM logs") == beforeInvalidEventFilter + 1
+                    && count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'AUTH_FAILURE'") == failedAuthBeforeInvalidFilter,
+                    "invalid filter audit adds only its validation event and leaves existing records intact");
             check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE ?", "%" + GOOD + "%")),
                     "audit records do not contain submitted credentials");
 
@@ -398,6 +432,10 @@ public final class AuthServiceTest {
             check(client.login("client1", GOOD.toCharArray()).isSuccess(), "client can sign in for denied-review test");
             check(audit.search(new AccessControl(client), "", null).isEmpty(),
                     "non-admin direct log review returns no records");
+            MgmtLogs clientLogPanel = new MgmtLogs(uiStore, new AccessControl(client));
+            clientLogPanel.searchLogs("invalid password");
+            check(clientLogPanel.tableModel.getRowCount() == 0,
+                    "non-admin log panel remains empty after direct UI-boundary search");
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'ACCESS_DENIED'") > 0,
                     "unauthorized log review is audited");
             check(audit.search(null, "", null).isEmpty(), "direct review without an access provider is denied");
