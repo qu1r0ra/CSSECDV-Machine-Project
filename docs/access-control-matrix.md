@@ -1,6 +1,6 @@
 # Access control matrix
 
-This matrix maps each application feature and protected resource to the six assignment user states. It reflects [the role descriptions](specifications.md#authorization) and current authorization in `AccessControl`, `UserAdminService`, `BundleBService`, and `SqliteSecurityAudit`. “Yes” means the signed-in role may perform the operation; a role cannot gain permission by calling a service directly.
+The matrix shows which roles can use each protected feature. `AccessControl`, `UserAdminService`, `BundleBService`, and `SqliteSecurityAudit` enforce these permissions in the application and service layer. A user cannot obtain a permission by calling a service directly.
 
 | Feature / Resource | Unregistered | Disabled (1) | Client (2) | Staff (3) | Manager (4) | Admin (5) |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -32,4 +32,4 @@ Public routes outside the protected-resource matrix: anyone can open the login f
 
 Audit append is automatic and does not grant permission to read logs. Admin audit review is read-only: the Admin may search or show all records, but no role has an application operation for permanent audit deletion. Critical account and product mutations enforce current-password verification in their service before changing state.
 
-Coverage evidence: the A and B suites exercise direct service authorization and role rules; the AssertJ Swing acceptance suite checks each valid role's home navigation, the Client's hidden product mutation controls, a denied direct product mutation, and the Admin's audit review. The aggregate command and result are in [TODO.md](TODO.md).
+The A and B tests exercise role rules and direct service calls. The Swing acceptance suite checks role-specific home panels, Client product controls, a denied direct mutation, and Admin audit review.

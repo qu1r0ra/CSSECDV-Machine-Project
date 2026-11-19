@@ -1,6 +1,6 @@
 # Submission package
 
-This folder contains the source project and the checked standalone demo distribution.
+The `distribution` folder contains the standalone demo application.
 
 ## Run the distribution
 

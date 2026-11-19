@@ -1,6 +1,6 @@
 # Demo test cases
 
-These cases cover the five assignment control groups. Run the automated commands recorded in [TODO.md](TODO.md); the UI suite needs a real desktop display because AssertJ Swing uses AWT Robot. For demo-account smoke tests, use the prepared distribution's credentials from the operator-only file outside the checkout. `test-distribution` works on a disposable package copy so that registration, purchases, and failed-login test data never reach the delivered database.
+Use these cases to demonstrate authentication, authorization, validation, error handling, and logging. Use the prepared demo credentials held separately from the distribution. Run tests that change accounts or purchases on a copy of the database.
 
 | Control Group | Test Scenario | Expected Outcome | Recorded Evidence |
 | --- | --- | --- | --- |
@@ -14,4 +14,4 @@ These cases cover the five assignment control groups. Run the automated commands
 
 `prepare-demo-database` refuses to overwrite an existing target. The tracked distribution contains one Admin, Manager, Staff, and Client account; the database contains hashes only. The seeder writes generated passwords to a file selected outside the project checkout. That operator-only file is not tracked. The package smoke suite mutates a copy of `database.db`, not the delivered copy.
 
-The exact database inspection, standalone package contents, copy-based role workflow, and NetBeans 32 smoke result are recorded in [TODO.md](TODO.md).
+The package was tested with a copy of the demo database. An earlier source revision was also launched in NetBeans 32.
