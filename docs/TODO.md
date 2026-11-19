@@ -23,76 +23,92 @@ Landing evidence (2026-11-02): PR #10 was squash-merged from head `0e1eafd` (the
 
 Shared-layer fix (2026-11-02, PR #12, squash-merged from head `6694e27` to `main` as `4208f6d`): `SQLite.addUser` (both overloads) now uses PreparedStatements, and `MgmtUser` no longer prints entered passwords. This closes the two residual findings noted above. A scratch-database round trip stored a quoted password and an injection-shaped username as literal values, and the clean Ant build with `test-bundle-b` passed. Other concatenated queries in `SQLite.java` (`addHistory`, `addLogs`, `addProduct`, `removeUser`, and `getProduct(name)`) remain until C's rewrite on `chore/prac_exec` lands.
 
-The status recorded above predates the Bundle A merge and is superseded by the source review below. On current `main` (`22a690f`, 2026-11-19), `AuthService`, `AccessControl`, `UserAdminService`, and `AppSecurityGateway` are present and wired by `Main`; the old claim that the app's adapter denies all B operations is no longer accurate. This source review is not a test result. [Integration issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9) remains open for integrated acceptance, manual Swing scenarios, shared logging/database cleanup, and full submission evidence.
+## Integrated candidate and acceptance evidence (2026-11-19)
 
-## Assignment status snapshot (2026-11-19)
+This section supersedes the pre-integration status snapshot above. Issue [#9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9) is integrated in the assigned #15 branch; this is the #17 evidence and delivery batch. Candidate code commit: ba2ad17f6825e3fb63ac457c2aae78aa30eded3e, based on integrated commit ff7f61e27c4fe6686f8a7992a8edef6bd9626b95. This exact commit passed the integrated A/B/UI regression target before the evidence was recorded. No PR or merge to main was created.
 
-The agreed ownership below is from [team allocation issue #4](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/4). Status reflects the code and evidence recorded on `main` at `22a690f`; it does not replace acceptance checks or declare a project-wide requirement complete. The original [course checklist](checklist.md) remains the source of scored criteria. Its boxes below stay unchecked until the required evidence is recorded.
+The final A, B, and Swing UI regression command passed on Windows with JDK 21.0.13 and Ant 1.10.18. The Swing target ran non-headless on the real desktop display; AssertJ Swing's AWT Robot drove the actual Swing controls. Its UI database is temporary and isolated. The target writes to unique build-final-17 / dist-final-17 directories so it does not collide with the orphan Java process or default NetBeans build output.
 
-| Assignment | Owner | Specification scope | Status on current `main` | Remaining work |
-| --- | --- | --- | --- | --- |
-| **A — Authentication and credentials** | Liam Michael Alain Ancheta | Registration, login/logout and session; password hashing/policy/masking; five-failure lockout; last-login status; re-authentication; credential storage. Primarily checklist 2.1.1–2.1.10, plus validation and audit for A-owned inputs/events. | Core code is present in the Bundle A merge (`22a690f`): `AuthService`, `AccountStore`, `PasswordHasher`, `InputValidator`, A behavior tests, and Swing login/registration wiring. The A test target exists, but this tracker has no recorded run after the merge. | Run and record A checks against the integrated revision; manually verify login/register/logout, masking, last-attempt display, lockout, re-authentication, and session revocation. Persistent auth audit is not connected (`Main` supplies `SecurityAudit.NONE`). Resolve whether re-auth failures should count toward the checklist's five failed **login** attempts; current code counts them. Prepare compliant demo accounts and record their use. |
-| **B — Products, purchases and history** | Christian Joseph Bunyi | Product add/edit/delete; Client purchasing and own history; Manager all-user history; related UI/database operations. Primarily checklist 2.2.2–2.2.3, 2.3.1–2.3.4, 2.4.1–2.4.4, and B contributions to 2.5.2–2.5.4. | B service, Swing callers, B-only ACL/docs/demo cases are present. Prior Bundle B service checks against temporary SQLite are recorded above; those checks used controlled shared-provider doubles and do not establish integrated acceptance. | Rerun relevant B checks with the actual A provider; perform and record the Swing walkthrough; verify audit events appear in the Admin log view. Complete system-wide documentation/matrix/demo evidence rather than only B rows. |
-| **C — Shared authorization, Admin tools, logging and delivery** | Roan Cedric Campo | Central authorization/navigation; Admin user/role management and account re-enabling; audit storage and Admin log management; shared validation/errors/fallback; integration and packaging. Primarily checklist 2.2.1–2.2.4, shared 2.3–2.5, and account/package deliverables. | Current code contains `AccessControl`, role routing, `UserAdminService`, and a Bundle B gateway backed by A services. Some C scope is therefore present, but shared audit persistence and the legacy database layer are incomplete. | Wire a persistent audit writer; finish or retire unsafe legacy `SQLite` methods; finish Admin log management; verify account re-enabling and admin-only access; complete shared failure/fallback review and prepared standalone packaging. Reconcile C's delivered revision with current `main` through #9. |
-| **Integration and final acceptance** | Christian (integration owner, per #9); coordinate with Liam and Roan | Reconcile A/B/C interfaces, run actual-provider integration and manual scenarios, update shared docs, prepare and verify final distribution. | [Issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9) remains open. The Bundle A code is now on `main`; prior notes saying A was absent are stale. | Verify direct calls and UI against all role rules; persistent logs; schema/data preservation; clean build and behavior checks; manual walkthrough; full ACL/security documentation/demo cases; compliant demo database and standalone distribution. Record exact revisions and results before checking scored items complete. |
+### Commands and results
 
-### Current cross-bundle gaps
+Run from the repository app directory unless noted.
 
-- **Audit persistence:** [Main.java](../app/src/Controller/Main.java) injects `SecurityAudit.NONE`, so A's authentication/validation/authorization events are discarded. B's service-level audit behavior does not fill the shared A/C logging requirement.
-- **Legacy SQL and error handling:** [SQLite.java](../app/src/Controller/SQLite.java) still concatenates values in `addHistory`, `addLogs`, `addProduct`, `removeUser`, and `getProduct(name)`; several methods print exception details, and `getLogs()` prints a stack trace. Newer A/B stores use parameterized queries, but this does not satisfy the project-wide requirement while these legacy paths remain.
-- **Admin log management:** [MgmtLogs.java](../app/src/View/MgmtLogs.java) gates log access by role, but its Clear handler is empty. Verify and complete the required Admin management behavior with a retention-safe policy.
-- **Demo delivery:** [DemoAccountSeeder.java](../app/src/Controller/DemoAccountSeeder.java) can prepare role accounts, but no prepared demo database is recorded. The standard package target uses the vulnerable starter fixture; the final distribution must use a prepared database and be verified independently.
-- **Evidence and documents:** the security documentation, ACL, and demo cases currently describe Bundle B rather than the complete application. Update them per bundle and record executed end-to-end evidence.
+| Purpose | Exact command | Result |
+| --- | --- | --- |
+| Rerun requested Swing UI acceptance suite | ant '-Dbuild.dir=build-final-17' '-Ddist.dir=dist-final-17' -f build.xml test-ui | BUILD SUCCESSFUL; registration/login, masked controls, all four enabled-role routes, denied direct Client product mutation, purchase confirmation, exact five-attempt lockout, and Admin audit search/show-all passed. |
+| Integrated A/B/UI regression | ant '-Dbuild.dir=build-final-17' '-Ddist.dir=dist-final-17' -f build.xml test-regression-final-17 | BUILD SUCCESSFUL; A passed 260 assertions against temporary SQLite, B provider checks passed, and real-display Swing acceptance passed. |
+| Prepare demo DB and operator-only credentials | ant '-Dbuild.dir=build-final-17' '-Ddist.dir=dist-final-17' '-Ddemo.database=fixtures/demo.db' '-Ddemo.credentials=C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt' -f build.xml prepare-demo-database | BUILD SUCCESSFUL; fresh database created with four hashed role accounts and two products. The generated plaintext passwords are in the external operator-only file, never in the database or tracked source. |
+| Package against prepared demo data | ant '-Dbuild.dir=build-final-17' '-Ddist.dir=dist-final-17' '-Ddistribution.database=fixtures/demo.db' -f build.xml jar | BUILD SUCCESSFUL; executable JAR, manifest, JDBC runtime, and prepared database copied into the standalone distribution. |
+| Test standalone distribution from a separate directory | ant '-Dbuild.dir=build-final-17' '-Ddist.dir=dist-final-17' '-Ddistribution.dir=C:\Users\Quirora\AppData\Local\Temp\CSSECDV-final17-smoke-postcommit-20261119' '-Ddemo.credentials=C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt' -f build.xml test-distribution | BUILD SUCCESSFUL; same Swing workflows loaded through the packaged JAR and ran against a disposable copy of database.db, leaving the delivered database unchanged. |
+| Direct executable-JAR launch | From the separate distribution directory: java -jar .\CSSECDV.jar | Process opened the CSSECDV - SECURITY Svcs window and closed normally. |
 
-## Accounts and security controls
+Test-only dependencies are pinned in app/test-lib: AssertJ Swing 3.17.1, AssertJ Core 3.17.2, and FEST Util 1.2.5. These were checked against official AssertJ Swing repository/Maven metadata and are used only by test-ui, test-regression-final-17, and test-distribution. They are absent from the runtime JAR and distribution. The Swing target cannot run headless because its AWT Robot sends native OS-level input.
 
-Each row maps to the exact requirement in [checklist.md](checklist.md). `Ready` is the final evidence-backed completion checkbox; `Current status` reports implementation evidence and remaining verification. A code path or test source is not a passing test result. Owners are grouped by the agreed A/B/C split; shared requirements have multiple owners.
+### Prepared distribution inspection
 
-| Ready | Checklist ID | Owner | Current status and remaining evidence |
-| --- | --- | --- | --- |
-| [ ] | 1.1.1 | A + C | Open — seeder supports a Role 5 account; a prepared, usable demo database and successful login evidence are not recorded. |
-| [ ] | 1.1.2 | A + C | Open — seeder supports Staff/Manager accounts; database preparation and role walkthrough are not recorded. |
-| [ ] | 1.1.3 | A + C | Open — registration assigns Client and seeder supports Client accounts; prepared-demo evidence is not recorded. |
-| [ ] | 2.1.1 | A + C + B | Code present — AuthService and protected operation gates exist; verify every protected panel/resource through direct calls and Swing. |
-| [ ] | 2.1.2 | A + C + B | Partial — service paths deny on authentication/storage failures; verify whole-app fail-closed behavior and fallback. |
-| [ ] | 2.1.3 | A | Code present — salted PBKDF2 and legacy-password migration exist; prepare/inspect the actual distribution database to establish no plaintext credentials remain. |
-| [ ] | 2.1.4 | A | Code present — login returns a generic failure; run the behavior checks and verify messages in Swing. |
-| [ ] | 2.1.5 | A | Code present — registration enforces upper/lower/digit/symbol; execute boundary and rejection checks. |
-| [ ] | 2.1.6 | A | Code present — 8–64 character policy; execute boundary checks and record evidence. |
-| [ ] | 2.1.7 | A + B + C | Code present — login/register/current-password inputs use masked controls; manually inspect every password prompt. |
-| [ ] | 2.1.8 | A | Partial — fifth counted failure sets Role 1, but re-authentication failures share the counter. Confirm or adjust against “five consecutive failed login attempts”; run exact-boundary checks. |
-| [ ] | 2.1.9 | A | Code present — successful login displays prior attempt timestamp/status; verify in Swing with success and failure histories. |
-| [ ] | 2.1.10 | A + B + C | Code present — sensitive admin and catalog operations request fresh credentials; verify password-change and all critical-operation paths end to end. |
-| [ ] | 2.2.1 | C + B | Code present — AccessControl and B operation-level authorization exist; verify every protected feature and direct service call. |
-| [ ] | 2.2.2 | A + B + C | Partial — role rules exist in services and views; finish full-feature coverage and manual UI visibility checks. |
-| [ ] | 2.2.3 | A + B + C | Partial — new services fail closed, but legacy database/error paths and integrated failure cases remain. |
-| [ ] | 2.2.4 | C + A | Code present — Frame routes to role-specific homes; verify all roles and disabled/unknown roles in Swing. |
-| [ ] | 2.3.1 | A + B + C | Partial — strict validators exist for account and B fields; audit all remaining Admin/shared inputs and verify total rejection. |
-| [ ] | 2.3.2 | A + B + C | Partial — role, stock, quantity and price bounds exist; verify all numeric fields, including Admin actions. |
-| [ ] | 2.3.3 | A + B + C | Partial — bounds exist for account and B inputs; confirm maximum raw length on every remaining input field. |
-| [ ] | 2.3.4 | A + B + C | Partial — AccountStore and BundleBService parameterize their interactions; legacy SQLite methods still concatenate SQL. |
-| [ ] | 2.4.1 | A + B + C | Partial — B returns safe messages; legacy SQLite methods print exception details/stack traces. |
-| [ ] | 2.4.2 | A + B + C | Partial — newer services use generic outcomes; replace technical output and check every user-facing error path. |
-| [ ] | 2.4.3 | A + B + C | Partial — service-level exception handling exists; legacy DB methods swallow or print errors and whole-controller coverage is incomplete. |
-| [ ] | 2.4.4 | A + B + C | Partial — Frame has a safe Login fallback and B invokes it for unrecoverable errors; verify all controller/database failure paths. |
-| [ ] | 2.5.1 | C | Partial — log viewing is Role 5-gated; Clear is a no-op and management behavior is not complete/verified. |
-| [ ] | 2.5.2 | A + B + C | Partial — B records timestamped events; shared A/C audit is discarded by SecurityAudit.NONE. |
-| [ ] | 2.5.3 | A + C | Open — AuthService emits events to the audit interface, but Main wires the no-op implementation. |
-| [ ] | 2.5.4 | B + C | Partial — B logs its denials; AccessControl sends shared denials to the no-op audit implementation. |
+app/submission/distribution/ is the standalone deliverable. It contains exactly CSSECDV.jar, database.db, and lib/sqlite-jdbc-3.23.1.jar. The JAR manifest names Controller.Main and the relative SQLite JDBC runtime. The prepared SQLite DB contains one account each at Roles 2, 3, 4, and 5; all four stored credentials use the production PBKDF2-SHA256 format at 600,000 iterations. It contains two catalog products, zero legacy history rows, zero purchase test rows, and two setup audit rows. No plaintext credential or test-only account is stored in that DB. The delivered DB's SHA-256 was inspected before and after copy-based testing and remained 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7.
 
-## Required functionality and deliverables
+| Runtime artifact | SHA-256 |
+| --- | --- |
+| CSSECDV.jar | 54c29721d860f9c44a18c71005282923cd27fbdef4ff425cbe8b972fb24a38d1 |
+| database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
+| lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
 
-- [ ] Verify registration, account re-enabling, and all role-authorized operations against the [role descriptions](specifications.md#authorization), including Admin/Disabled and direct-call cases.
-- [ ] Complete [security documentation](security-documentation.md) for every addressed checklist item, distinguishing vulnerability, impact, and exact control.
-- [ ] Complete the [access control matrix](access-control-matrix.md) for every feature/resource and verify least privilege.
-- [ ] Complete [demo test cases](demo-test-cases.md) covering all five control groups and record execution evidence.
-- [ ] Prepare the required functional demo accounts in a database with compliant credential storage; run and record the seeder, then inspect the packaged database.
-- [ ] Package the complete source folder and standalone distribution: executable JAR, all dependencies, and prepared database.
-- [ ] Verify the distribution launches and works from a separate directory using its own prepared database and dependencies; record the exact build/revision and scenarios.
+Operator demo passwords are generated for the prepared database and held only in C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt, outside the checkout with an owner/system/admin-only ACL. They are not copied into project resources or the tracked package. The seeder refuses to overwrite an existing database. The generated app/fixtures/demo.db staging copy is not part of the final tracked artifacts; the distribution copy is the prepared DB.
 
-Optional compatibility follow-up: the specification asks the team to try the finished project in NetBeans. Development uses the JDK and Ant; NetBeans is not installed as part of setup.
+### Checklist readiness against this candidate
+
+Only criteria with recorded implementation and behavior evidence are checked. 28 of 29 scored items are evidenced complete. The one unchecked row remains an open review gap; do not count it as complete.
+
+| Ready | Checklist ID | Candidate evidence |
+| --- | --- | --- |
+| [x] | 1.1.1 | Prepared Role 5 demo Admin successfully signs in in the distribution smoke suite. |
+| [x] | 1.1.2 | Prepared Role 3 Staff and Role 4 Manager accounts successfully sign in and reach their own homes. |
+| [x] | 1.1.3 | Prepared Role 2 Client successfully signs in; Swing registration also creates a Client account. |
+| [x] | 2.1.1 | Provider tests cover protected operations and denial; UI routes and role gates are checked through the integrated suite. |
+| [x] | 2.1.2 | Auth, business, and required-audit provider failures fail closed; stale/disabled session returns to the unprivileged Login panel. |
+| [x] | 2.1.3 | Demo DB inspection found four PBKDF2-SHA256 hashes and no plaintext password rows; A tests cover hashing and legacy migration. |
+| [x] | 2.1.4 | A provider and Swing tests verify the generic invalid-credential response. |
+| [x] | 2.1.5 | A provider tests cover required character classes and rejection of weak passwords. |
+| [x] | 2.1.6 | A provider tests cover the 8–64 character boundary. |
+| [x] | 2.1.7 | Swing verifies masked login, registration, and confirmation password fields. |
+| [x] | 2.1.8 | A provider and Swing tests verify the account stays enabled through four failures and becomes Role 1 on the fifth; success resets the sequence. |
+| [x] | 2.1.9 | A provider and Swing tests verify the prior attempt timestamp and status are reported after successful login. |
+| [x] | 2.1.10 | A/B providers test current-password reauthentication and operation binding; Swing tests the purchase confirmation step. |
+| [x] | 2.2.1 | Central AccessControl checks role homes, user administration, and audit review; business providers enforce operation-level authorization. |
+| [x] | 2.2.2 | Provider role matrices and Swing route/control visibility checks cover Client, Staff, Manager, and Admin behavior. |
+| [x] | 2.2.3 | Provider/storage failures and unauthorized direct calls return denial or safe failure without granting privileges. |
+| [x] | 2.2.4 | Swing verifies each enabled role's home; disabled/stale actor is returned to Login. |
+| [x] | 2.3.1 | A/B validation tests reject malformed and over-limit inputs without sanitizing or partially mutating state. |
+| [x] | 2.3.2 | A/B tests cover role, quantity, stock, and exact price range/boundary handling. |
+| [x] | 2.3.3 | A/B tests cover account, catalog, quantity, and search length boundaries. |
+| [x] | 2.3.4 | Runtime data queries use parameterized providers; the former unsafe compatibility CRUD surface is retired, and audit filters are parameterized. |
+| [x] | 2.4.1 | Production sources no longer print stack traces or provider details to end users; failure paths return safe outcomes. |
+| [x] | 2.4.2 | UI receives fixed, user-friendly service messages; provider details are not shown. |
+| [ ] | 2.4.3 | Open: high-risk controller/provider error paths and rollback are tested, but this evidence does not prove that every controller and database method is wrapped against every unexpected event. |
+| [x] | 2.4.4 | B provider failure paths invoke the safe fallback; Swing verifies a revoked/disabled session reaches the Login panel. |
+| [x] | 2.5.1 | Role checks restrict account/audit administration; Admin can search and show all logs; the application exposes no permanent audit-delete operation. |
+| [x] | 2.5.2 | A/B provider tests verify timestamped validation events and persistence. |
+| [x] | 2.5.3 | A provider tests verify timestamped successful and failed authentication events. |
+| [x] | 2.5.4 | A/B provider tests verify unauthorized resource attempts are denied and recorded. |
+
+### Required functionality and delivery status
+
+- [x] Security documentation uses vulnerability / impact / exact implemented control rows and reconciles #15/#16 audit-retention and fail-closed rules.
+- [x] Access-control matrix covers all listed resources/actions and the six assignment states (Unregistered, Disabled, Client, Staff, Manager, Admin).
+- [x] Demo cases cover Authentication, Authorization, Data Validation, Error Handling, and Logging.
+- [x] Isolated prepared demo database, operator-only credential delivery, executable JAR, runtime JDBC dependency, and standalone README are present.
+- [x] A/B actual-provider regression and real-display Swing suite pass.
+- [x] Copy-based standalone distribution UI suite and direct JAR launch pass; delivery DB remains unchanged.
+- [x] git diff --check passes.
+- [ ] NetBeans open/build attempt: unavailable on this machine. Get-Command netbeans found no executable, and C:\Program Files\NetBeans / C:\Program Files\Apache NetBeans do not exist. Ant test/package targets build the finished project successfully; a NetBeans result cannot be claimed.
+
+### Reconciliation and remaining gap
+
+The tested artifacts satisfy the issue #17 delivery scope against the assignment materials, rubric/checklist, #15, and settled Bundle B. The settled #15/#16 constraints are preserved: there is no permanent audit-delete action, required audit-write failures fail closed, the test and distribution-smoke databases are isolated, and recorded evidence reflects executed commands. No test passwords or demo plaintext credentials are tracked. The remaining checklist gap is 2.4.3's broad all-method crash-boundary claim; NetBeans is unavailable as noted above. Keep 2.4.3 unchecked unless further whole-application failure coverage supports it.
 
 ## Scheduling and later decisions
+
 
 The October 20 class announcement identified **November 20, 2026** as the first demo date, with November 24 or 27 mentioned for later sessions. Our assigned slot and a common final code-submission deadline are not established by these handouts. Treat the earliest date as a preparation target until the assigned schedule is confirmed. The same announcement said no PowerPoint was required.
 
