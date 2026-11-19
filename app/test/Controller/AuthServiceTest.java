@@ -31,7 +31,7 @@ public final class AuthServiceTest {
         sessionIsRevalidatedAgainstTheDatabase();
         roleTableMatchesTheAccessControlMatrix();
         injectionShapedInputIsRejectedNotSanitized();
-        reauthenticationCountsTowardLockoutAndEndsTheSession();
+        reauthenticationFailuresAreSeparateFromLoginLockout();
         adminOperationsAreAuthorizedValidatedAndReauthenticated();
         bundleBWorksThroughTheRealGateway();
         authenticationRollsBackWhenAuditPersistenceFails();
@@ -229,7 +229,7 @@ public final class AuthServiceTest {
         } finally { f.close(); }
     }
 
-    private static void reauthenticationCountsTowardLockoutAndEndsTheSession() throws Exception {
+    private static void reauthenticationFailuresAreSeparateFromLoginLockout() throws Exception {
         Fixture f = new Fixture();
         try {
             final int[] revoked = {0};
@@ -240,7 +240,18 @@ public final class AuthServiceTest {
             check(!f.auth.verifyCurrentPassword(actor, "Wrong!Pass1".toCharArray()), "wrong current password fails");
             check(!f.auth.verifyCurrentPassword(new BundleBService.Actor(actor.getUserId(), actor.getUsername(), actor.getRole(), actor.getSessionGeneration() + 1), GOOD.toCharArray()), "stale actor cannot re-authenticate");
             for (int i = 0; i < 4; i++) { f.auth.verifyCurrentPassword(actor, "Wrong!Pass1".toCharArray()); }
-            check("1".equals(f.role("client1")) && revoked[0] == 1 && f.auth.currentActor() == null, "five failed re-authentications disable the account and end the session");
+            check("2".equals(f.role("client1")) && f.auth.currentActor() != null,
+                    "failed re-authentication does not count as a failed login or disable the account");
+            check("5".equals(scalar(f.db, "SELECT reauth_failures FROM users WHERE username = ?", "client1")),
+                    "reauthentication failures are tracked separately");
+            check(f.auth.verifyCurrentPassword(actor, GOOD.toCharArray())
+                    && "0".equals(scalar(f.db, "SELECT reauth_failures FROM users WHERE username = ?", "client1")),
+                    "successful re-authentication resets its own failure count");
+            for (int i = 0; i < 4; i++) { f.auth.login("client1", "Wrong!Pass1".toCharArray()); }
+            check("2".equals(f.role("client1")), "reauthentication failures do not affect five-login lockout threshold");
+            f.auth.login("client1", "Wrong!Pass1".toCharArray());
+            check("1".equals(f.role("client1")) && revoked[0] == 1 && f.auth.currentActor() == null,
+                    "exactly five consecutive failed logins disable the account and end the session");
         } finally { f.close(); }
     }
 

@@ -133,10 +133,14 @@ public final class AuthService {
                     }
                     String now = Instant.now().toString();
                     if (!matches) {
-                        boolean disabled = store.recordFailure(c, a.id, now, true);
+                        boolean disabled = store.recordFailure(c, a.id, now);
                         audit.record(c, "AUTH_FAILURE", a.username, "invalid password");
                         if (disabled) { audit.record(c, "ACCOUNT_DISABLED", a.username, "role set to 1 after " + AccountStore.MAX_FAILED_ATTEMPTS + " consecutive failures"); }
                         c.commit();
+                        if (disabled) {
+                            Session current = session;
+                            if (current != null && current.userId == a.id) { revoke(current); }
+                        }
                         return LoginResult.failed();
                     }
                     store.recordSuccess(c, a.id, now, PasswordHasher.needsRehash(a.passwordHash) ? PasswordHasher.hash(password) : null);
@@ -173,6 +177,9 @@ public final class AuthService {
             }
             return new BundleBService.Actor(s.userId, s.username, s.role, s.generation);
         } catch (Exception ex) {
+            // A failed identity refresh is an unrecoverable authorization-state error. End the
+            // session and let the configured listener route the UI to its safe public state.
+            revoke(s);
             return null;
         }
     }
@@ -211,18 +218,14 @@ public final class AuthService {
                     AccountStore.Account a = store.findById(c, s.userId);
                     if (a == null || !a.isActive()) { rollbackQuietly(c); revoke(s); return false; }
                     if (PasswordHasher.verify(password, a.passwordHash)) {
-                        store.resetFailures(c, a.id);
+                        store.resetReauthenticationFailures(c, a.id);
                         audit.record(c, "AUTH_SUCCESS", a.username, "re-authentication");
                         c.commit();
                         return true;
                     }
-                    boolean disabled = store.recordFailure(c, a.id, Instant.now().toString(), false);
+                    store.recordReauthenticationFailure(c, a.id);
                     audit.record(c, "AUTH_FAILURE", a.username, "re-authentication failed");
-                    if (disabled) {
-                        audit.record(c, "ACCOUNT_DISABLED", a.username, "role set to 1 after " + AccountStore.MAX_FAILED_ATTEMPTS + " consecutive failures");
-                    }
                     c.commit();
-                    if (disabled) { revoke(s); }
                     return false;
                 } catch (SQLException ex) {
                     rollbackQuietly(c);

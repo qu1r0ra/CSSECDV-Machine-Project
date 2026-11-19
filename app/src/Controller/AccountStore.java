@@ -42,6 +42,7 @@ final class AccountStore {
                 s.execute();
             }
             addColumnIfMissing(c, "failed_attempts", "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(c, "reauth_failures", "INTEGER NOT NULL DEFAULT 0");
             addColumnIfMissing(c, "last_attempt_at", "TEXT");
             addColumnIfMissing(c, "last_attempt_status", "TEXT");
             c.commit();
@@ -129,13 +130,11 @@ final class AccountStore {
         }
     }
 
-    /** Counts one consecutive failure; the fifth moves an active account to Role 1. Returns true if it was disabled now. */
-    boolean recordFailure(Connection c, int id, String now, boolean isLoginAttempt) throws SQLException {
-        try (PreparedStatement s = c.prepareStatement("UPDATE users SET failed_attempts = failed_attempts + 1"
-                + (isLoginAttempt ? ", last_attempt_at = ?, last_attempt_status = 'FAILED'" : "") + " WHERE id = ? AND role >= 2")) {
-            int i = 1;
-            if (isLoginAttempt) { s.setString(i++, now); }
-            s.setInt(i, id);
+    /** Counts one consecutive failed login; the fifth moves an active account to Role 1. */
+    boolean recordFailure(Connection c, int id, String now) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement("UPDATE users SET failed_attempts = failed_attempts + 1, last_attempt_at = ?, last_attempt_status = 'FAILED' WHERE id = ? AND role BETWEEN 2 AND 5")) {
+            s.setString(1, now);
+            s.setInt(2, id);
             s.executeUpdate();
         }
         try (PreparedStatement s = c.prepareStatement("UPDATE users SET role = ? WHERE id = ? AND failed_attempts >= ? AND role >= 2")) {
@@ -143,6 +142,22 @@ final class AccountStore {
             s.setInt(2, id);
             s.setInt(3, MAX_FAILED_ATTEMPTS);
             return s.executeUpdate() == 1;
+        }
+    }
+
+    /** Re-authentication is audited separately and never contributes to the login lockout threshold. */
+    void recordReauthenticationFailure(Connection c, int id) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement(
+                "UPDATE users SET reauth_failures = reauth_failures + 1 WHERE id = ? AND role BETWEEN 2 AND 5")) {
+            s.setInt(1, id);
+            s.executeUpdate();
+        }
+    }
+
+    void resetReauthenticationFailures(Connection c, int id) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement("UPDATE users SET reauth_failures = 0 WHERE id = ?")) {
+            s.setInt(1, id);
+            s.executeUpdate();
         }
     }
 
@@ -154,7 +169,7 @@ final class AccountStore {
     }
 
     boolean updateRole(Connection c, int id, int role) throws SQLException {
-        try (PreparedStatement s = c.prepareStatement("UPDATE users SET role = ?, failed_attempts = 0 WHERE id = ?")) {
+        try (PreparedStatement s = c.prepareStatement("UPDATE users SET role = ?, failed_attempts = 0, reauth_failures = 0 WHERE id = ?")) {
             s.setInt(1, role);
             s.setInt(2, id);
             return s.executeUpdate() == 1;
@@ -171,7 +186,7 @@ final class AccountStore {
     }
 
     boolean updatePassword(Connection c, int id, String hash) throws SQLException {
-        try (PreparedStatement s = c.prepareStatement("UPDATE users SET password = ?, failed_attempts = 0 WHERE id = ?")) {
+        try (PreparedStatement s = c.prepareStatement("UPDATE users SET password = ?, failed_attempts = 0, reauth_failures = 0 WHERE id = ?")) {
             s.setString(1, hash);
             s.setInt(2, id);
             return s.executeUpdate() == 1;
