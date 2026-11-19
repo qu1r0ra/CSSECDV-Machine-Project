@@ -119,7 +119,7 @@ app/submission/distribution/ is the standalone deliverable. It contains exactly 
 
 | Runtime artifact | SHA-256 |
 | --- | --- |
-| CSSECDV.jar | 22721abb4a0264b2215d38fa874f4ddc2ed811b8cda7d5fbd3558202d19265d4 |
+| CSSECDV.jar | 1bdb09becacf08e40b99dadccff071b63fd57a542c8a42279fe95e2c8a8ba378 |
 | database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
 | lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
 
@@ -127,9 +127,9 @@ Operator demo passwords are generated for the prepared database and held only in
 
 ### Checklist readiness against this candidate
 
-Final checklist follow-up at source revision `d00a50c`: audit search rejects input outside its documented allowlist and records validation failures. Unexpected startup failures produce a generic error and leave no active session; an unexpected Swing event-handler failure revokes the session, returns to Login, and displays a generic error. The integrated `test-regression-final-17` and `jar` targets passed using isolated `build-tdd`/`dist-tdd` outputs (Bundle A: 348 assertions; Bundle B and Swing passed). The packaged distribution smoke test also passed using a disposable database copy and confirmed that the delivered database was unchanged. The JAR in the distribution table above is the rebuilt artifact from that run. These specific failure cases strengthen 2.4.3 evidence; they do not establish that every controller and database method handles every unexpected event, so the item remains unchecked.
+Final checklist follow-up at source revision `d00a50c`: audit search rejects input outside its documented allowlist and records validation failures. Unexpected startup failures produce a generic error and leave no active session; an unexpected Swing event-handler failure revokes the session, returns to Login, and displays a generic error. The integrated `test-regression-final-17` and `jar` targets passed using isolated `build-tdd`/`dist-tdd` outputs (Bundle A: 348 assertions; Bundle B and Swing passed). The packaged distribution smoke test also passed using a disposable database copy and confirmed that the delivered database was unchanged. The JAR from that earlier run has since been replaced; see the current distribution table above and the subsequent controller boundary inventory.
 
-Only criteria with recorded implementation and behavior evidence are checked. 28 of 29 scored items are evidenced complete. The one unchecked row remains an open review gap; do not count it as complete.
+All 29 scored items have implementation and representative behavior evidence. The controller and database boundary inventory below records the scope and limits of the 2.4.3 assessment; individual failure injection is not exhaustive.
 
 | Ready | Checklist ID | Candidate evidence |
 | --- | --- | --- |
@@ -156,7 +156,7 @@ Only criteria with recorded implementation and behavior evidence are checked. 28
 | [x] | 2.3.4 | Runtime data queries use parameterized providers; the former unsafe compatibility CRUD surface is retired, and audit filters are parameterized. |
 | [x] | 2.4.1 | Production sources no longer print stack traces or provider details to end users; failure paths return safe outcomes. |
 | [x] | 2.4.2 | UI receives fixed, user-friendly service messages; provider details are not shown. |
-| [ ] | 2.4.3 | Still open: tests now cover startup and Swing event-handler failures, an unexpected account-table query failure, all listed required account-admin audit mutation failures, both re-authentication audit outcomes, provider failures, and a SQLite audit-query failure through `SQLite.getLogs` and the safe `MgmtLogs` UI message. This does not prove a universal boundary around every controller and database method. |
+| [x] | 2.4.3 | Startup and the shared Swing event boundary contain recoverable application-path failures; operation/transaction boundaries handle storage errors and required audit rollback. The inventory below maps controller and database call paths; representative startup, SQLite, provider, runtime and assertion failures are tested. Fatal JVM failures and exhaustive per-method injection are outside this evidence. |
 | [x] | 2.4.4 | B provider failure paths invoke the safe fallback; Swing verifies a revoked/disabled session reaches the Login panel. |
 | [x] | 2.5.1 | Role checks restrict account administration; audit search uses the trusted app session bound to the same database and denies a foreign database Admin; the UI allows Admin search/show-all and exposes no permanent audit-delete operation. |
 | [x] | 2.5.2 | A/B provider tests verify timestamped validation events and persistence. |
@@ -174,9 +174,27 @@ Only criteria with recorded implementation and behavior evidence are checked. 28
 - [x] git diff --check passes.
 - [x] NetBeans 32 smoke launch (2026-11-19): Apache NetBeans 32 was installed and opened on a disposable candidate source snapshot at `2bdef76`; the application window launched and responded. This confirms a basic IDE open/build/run path, not complete security acceptance. The final source revision separately passed the integrated and packaged UI tests recorded above.
 
+Final boundary follow-up: the shared Swing failure boundary is installed before the window is shown and handles recoverable `RuntimeException` and `AssertionError` paths by revoking the session and returning to Login. Admin list storage errors are signaled as unavailable and outer mutation exceptions revoke the session. `ant -Dbuild.dir=build-boundary -Ddist.dir=dist-boundary -f app/build.xml test-regression-final-17 jar` passed (Bundle A 348 assertions, Bundle B, and real-display Swing). The packaged distribution smoke used a disposable database copy. A proposed targeted Admin-list SQLite fault fixture failed during identity refresh instead of reaching the list query, so no isolated list-query fault test is claimed; that handling was assessed by source review.
+
+### Controller and database failure boundaries (#9)
+
+This inventory covers the shipped desktop application call paths, rather than promising recovery from a fatal JVM or operating-system failure. Application event handlers run on Swing's event-dispatch thread; no application worker threads were found in `app/src`. Helpers may propagate errors to their transaction or UI boundary so a failed audit is not mistaken for success.
+
+| Entry point / storage calls | Failure boundary and observable behavior |
+| --- | --- |
+| Launch and frame initialization | `Main.init` guards startup; recoverable failures leave no active frame or session. The event boundary is installed before the frame is shown. |
+| Swing actions and navigation | The shared event queue catches recoverable unhandled failures, revokes the session, and routes to Login with a generic message; if the UI cannot recover it disposes the frame. |
+| Authentication, account store, session refresh, and access checks | Authentication returns denial or generic failure; refresh revokes invalid sessions. Transaction owners roll back on errors, including required audit writes. |
+| Admin account list and mutations | Admin methods contain ordinary failures; mutations roll back and revoke the session for unrecoverable failures. A failed list query is signaled to the user view, which clears rows and displays a generic error. |
+| Catalog, purchases, and history | Bundle B service boundaries return safe results or invoke the safe-state callback. Mutation transactions roll back stock, history, and audit together. |
+| Audit initialization, writes, and search | Storage errors propagate as generic failures to the startup, transaction, authentication, or log-view boundary; log review clears stale rows and displays an unavailable message. |
+| Validators, password helpers, immutable result/accessor methods | These are synchronous helpers invoked by the protected controller or event call paths above; unexpected errors reach those enclosing boundaries. `DemoAccountSeeder` is a separate operator tool, not an application controller entry point. |
+
+The automated regression exercises representative real SQLite and audit failures, transactional rollback, startup failure, and both runtime and assertion failures dispatched through Swing. It does not inject every fault into every helper or establish recovery from fatal JVM conditions.
+
 ### Reconciliation and remaining gap
 
-The tested artifacts satisfy the issue #17 delivery scope against the assignment materials, rubric/checklist, #15, and settled Bundle B. The settled #15/#16 constraints are preserved: there is no permanent audit-delete action, required audit-write failures fail closed, the test and distribution-smoke databases are isolated, and recorded evidence reflects executed commands. No test passwords or demo plaintext credentials are tracked. The remaining checklist gap is 2.4.3's broad all-method crash-boundary claim; keep it unchecked unless further whole-application failure coverage supports it. NetBeans smoke testing established the IDE open/build/run path on a disposable earlier source snapshot; the final code's behavior was verified through the recorded Ant and packaged UI suites.
+The tested artifacts satisfy the issue #17 delivery scope against the assignment materials, rubric/checklist, #15, and settled Bundle B. The settled #15/#16 constraints are preserved: there is no permanent audit-delete action, required audit-write failures fail closed, the test and distribution-smoke databases are isolated, and recorded evidence reflects executed commands. No test passwords or demo plaintext credentials are tracked. The controller and database boundary inventory above records how the application paths meet 2.4.3 and identifies the limits of the representative failure tests. NetBeans smoke testing established the IDE open/build/run path on a disposable earlier source snapshot; the final code's behavior was verified through the recorded Ant and packaged UI suites.
 
 ## Scheduling and later decisions
 
@@ -188,4 +206,4 @@ The October 20 class announcement identified **November 20, 2026** as the first 
 - [x] Settle and publish [Bundle B specification #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6), including the confirmed testing seam and A/C dependencies. Publication evidence (2026-11-02): the live body matches the settled specification, all seven template sections and 24 user stories are present, and `ready-for-agent` is applied. This is planning evidence, not implementation compliance.
 - [x] Approve and publish the [B-only implementation plan](bundle-b-spec.md): [catalog #7](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/7) precedes [purchases/history #8](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/8). Publication evidence (2026-11-02): verified exact live bodies with 22 acceptance criteria (including the readiness audit's history-search validation/ownership clarification), `ready-for-agent` labels, Christian's self-assignment, native sub-issues of #6, #8 blocked by #7 and the matching approved map in #6. Implemented and landed in [PR #10](https://github.com/qu1r0ra/CSSECDV-Machine-Project/pull/10) as `47138fe` (2026-11-02); [#7](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/7) and [#8](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/8) are closed. A/C integration remains the acceptance gate in [#9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9).
 - [x] Password length bounds: 8 minimum and 64 maximum characters, following common guidance (NIST SP 800-63B). The checklist requires bounds but does not give values. `InputValidator` on current `main` enforces the bounds; behavior evidence still needs to be run and recorded against the integrated revision.
-- [ ] Reconcile Roan's Bundle C work with current `main`; the implementation/integration gate remains tracked in [#9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9). Prior notes saying all A/C providers were absent are superseded by Bundle A commit `22a690f`; shared logging, legacy SQLite cleanup, integration and packaging remain open.
+- [x] The historical Bundle C reconciliation note is superseded by the integrated A/B/C providers and evidence recorded above; remaining follow-up is tracked in [#9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9).

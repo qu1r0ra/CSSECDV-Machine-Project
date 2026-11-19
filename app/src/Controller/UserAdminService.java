@@ -48,7 +48,8 @@ public final class UserAdminService {
             for (AccountStore.Account a : store.findAll(c)) { rows.add(new UserRow(a.id, a.username, a.role, a.locked)); }
             return rows;
         } catch (Exception ex) {
-            return Collections.emptyList();
+            auth.failSafeSession();
+            throw new IllegalStateException("User records are unavailable right now.");
         }
     }
 
@@ -74,6 +75,7 @@ public final class UserAdminService {
                 }
             }
         } catch (Exception ex) {
+            auth.failSafeSession();
             return new Result(false, FAILED);
         } finally { AuthService.clear(adminPassword); }
     }
@@ -97,6 +99,7 @@ public final class UserAdminService {
                 }
             }
         } catch (Exception ex) {
+            auth.failSafeSession();
             return new Result(false, FAILED);
         }
     }
@@ -122,6 +125,7 @@ public final class UserAdminService {
                 }
             }
         } catch (Exception ex) {
+            auth.failSafeSession();
             return new Result(false, FAILED);
         } finally { AuthService.clear(adminPassword); }
     }
@@ -154,6 +158,7 @@ public final class UserAdminService {
                 }
             }
         } catch (Exception ex) {
+            auth.failSafeSession();
             return new Result(false, FAILED);
         } finally { AuthService.clear(newPassword); AuthService.clear(confirm); AuthService.clear(adminPassword); }
     }

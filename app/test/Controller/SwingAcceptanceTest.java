@@ -151,7 +151,8 @@ public final class SwingAcceptanceTest {
             roleNavigation("staff", "staffHomeButton");
             roleNavigation("admin", "adminHomeButton");
             adminAuditReview();
-            unexpectedUiFailureReturnsToLogin();
+            unexpectedUiFailureReturnsToLogin(false);
+            unexpectedUiFailureReturnsToLogin(true);
             safeFallbackOnDisabledSession();
             exactLockout();
         } finally {
@@ -244,10 +245,13 @@ public final class SwingAcceptanceTest {
         gui.button("logoutButton").click();
     }
 
-    private void unexpectedUiFailureReturnsToLogin() throws Exception {
+    private void unexpectedUiFailureReturnsToLogin(final boolean assertionError) throws Exception {
         login("admin", passwords.get("admin"));
         SwingUtilities.invokeLater(new Runnable() {
-            public void run() { throw new IllegalStateException("injected internal failure"); }
+            public void run() {
+                if (assertionError) { throw new AssertionError("injected internal failure"); }
+                throw new IllegalStateException("injected internal failure");
+            }
         });
         SwingUtilities.invokeAndWait(new Runnable() { public void run() { } });
         require(application.auth.currentActor() == null, "unexpected UI failure revokes the active session");

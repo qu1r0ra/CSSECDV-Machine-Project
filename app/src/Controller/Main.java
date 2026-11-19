@@ -16,7 +16,11 @@ public class Main {
         Main application = new Main();
         application.init();
         if (application.getFrame() == null) {
-            javax.swing.JOptionPane.showMessageDialog(null, "The application could not be started.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            try {
+                javax.swing.JOptionPane.showMessageDialog(null, "The application could not be started.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+            } catch (Throwable ex) {
+                rethrowFatal(ex);
+            }
         }
     }
 
@@ -28,16 +32,16 @@ public class Main {
     public void init(Path databasePath) {
         try {
             initialize(databasePath);
-            java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().push(new java.awt.EventQueue() {
-                @Override protected void dispatchEvent(java.awt.AWTEvent event) {
-                    try { super.dispatchEvent(event); }
-                    catch (RuntimeException ex) { handleUnexpectedUiFailure(); }
-                }
-            });
-        } catch (RuntimeException ex) {
+        } catch (Throwable ex) {
+            rethrowFatal(ex);
             if (auth != null) { auth.logout(); }
             if (frame != null) { frame.dispose(); frame = null; }
         }
+    }
+
+    private static void rethrowFatal(Throwable failure) {
+        if (failure instanceof VirtualMachineError) { throw (VirtualMachineError) failure; }
+        if (failure instanceof ThreadDeath) { throw (ThreadDeath) failure; }
     }
 
     private void handleUnexpectedUiFailure() {
@@ -49,7 +53,8 @@ public class Main {
             javax.swing.JDialog dialog = pane.createDialog(frame, "Error");
             dialog.setModal(false);
             dialog.setVisible(true);
-        } catch (RuntimeException ex) {
+        } catch (Throwable ex) {
+            rethrowFatal(ex);
             if (frame != null) { frame.dispose(); frame = null; }
         }
     }
@@ -76,6 +81,12 @@ public class Main {
         catch (IllegalStateException ignored) { /* B remains unavailable and protected actions fail closed. */ }
 
         frame = new Frame();
+        java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().push(new java.awt.EventQueue() {
+            @Override protected void dispatchEvent(java.awt.AWTEvent event) {
+                try { super.dispatchEvent(event); }
+                catch (Throwable ex) { rethrowFatal(ex); handleUnexpectedUiFailure(); }
+            }
+        });
         frame.init(this);
     }
 

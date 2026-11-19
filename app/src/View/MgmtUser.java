@@ -49,7 +49,14 @@ public class MgmtUser extends javax.swing.JPanel {
         }
         
 //      LOAD CONTENTS
-        users = admin.listUsers();
+        try {
+            users = admin.listUsers();
+        } catch (RuntimeException ex) {
+            users = new ArrayList<UserAdminService.UserRow>();
+            JOptionPane.showMessageDialog(this, "User records are unavailable right now.",
+                "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         for(int nCtr = 0; nCtr < users.size(); nCtr++){
             tableModel.addRow(new Object[]{
                 users.get(nCtr).getUsername(), 
