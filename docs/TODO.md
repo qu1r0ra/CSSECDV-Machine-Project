@@ -66,6 +66,21 @@ The checked-in distribution currently contains exactly the executable JAR, `data
 | database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
 | lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
 
+### Follow-up independent findings (2026-11-19)
+
+Code revision `933b3c3` (full source commit recorded in Git) fixes the additional #15 findings. Valid-shaped login attempts against disabled or temporarily locked accounts now spend the same dummy PBKDF2 verification as unknown accounts; deterministic tests count verifier invocations. Blocked attempts update the prior-attempt timestamp/status without changing failed-attempt counters, role, or lock state; a successful login after unlock reports the failed attempt. Malformed usernames write `VALIDATION_FAILURE` and `AUTH_FAILURE` together in one transaction using actor `UNKNOWN` and no submitted username or password; a failure of either audit write rolls back both, returns a generic error, and revokes an existing session to the configured safe state. `UserAdminService` now revokes the Admin session and uses a generic failure if its standalone validation audit fails; tests cover invalid role, lock, delete, password policy, and confirmation paths. The prior historical result above is corrected to identify Ant's implicit checksum algorithm as MD5; the commands below use the explicit SHA-256 test already present in the distribution target. Checklist 2.4.3 remains unchecked.
+
+Run from `app/` on JDK 21.0.13 and Ant 1.10.18:
+
+| Purpose | Exact command | Result |
+| --- | --- | --- |
+| Integrated A/B and real-display Swing regression | `ant '-Dbuild.dir=build-rereview15' '-Ddist.dir=dist-rereview15' -f build.xml test-regression-final-17` | BUILD SUCCESSFUL at code revision `933b3c3`; A passed 334 assertions, B provider checks passed, and the real-display Swing suite passed. |
+| Rebuild tracked standalone distribution | `ant '-Dbuild.dir=build-rereview15' '-Ddist.dir=submission/distribution' '-Ddistribution.database=submission/distribution/database.db' -f build.xml jar` | BUILD SUCCESSFUL; tracked executable JAR rebuilt from the tested source. |
+| Standalone distribution Swing smoke | `ant '-Dbuild.dir=build-rereview15' '-Ddist.dir=dist-rereview15' '-Ddistribution.dir=submission/distribution' '-Ddemo.credentials=C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt' -f build.xml test-distribution` | BUILD SUCCESSFUL; packaged-JAR workflows used the disposable `build-rereview15/distribution-smoke/database.db`; the tracked database passed the target's before/after SHA-256 preservation check. |
+| Patch whitespace check | `git diff --check` | Passed before commit. |
+
+The tracked distribution SHA-256 after rebuild and standalone smoke is `CSSECDV.jar` `8d309be95fbb9668ea5c301689acf69241927cde107a83ec6970a29ebfa2a92c`, `database.db` `4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7`, and `lib/sqlite-jdbc-3.23.1.jar` `d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331`. The evidence update is docs-only after tested code revision `933b3c3`; 2.4.3 remains open absent universal controller/database failure-boundary evidence.
+
 The earlier documentation/evidence update followed code revision `df2b8c9`; the independent re-review evidence above is bound to source revision `e87494e39aa004101f1d313975f1c611bc557bec`. No PR or merge was created. The completion checkout was not touched.
 
 The final A, B, and Swing UI regression command passed on Windows with JDK 21.0.13 and Ant 1.10.18. The Swing target ran non-headless on the real desktop display; AssertJ Swing's AWT Robot drove the actual Swing controls. Its UI database is temporary and isolated. The target writes to unique build-final-17 / dist-final-17 directories so it does not collide with the orphan Java process or default NetBeans build output.
