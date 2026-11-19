@@ -35,13 +35,30 @@ public class Main {
         } catch (Throwable ex) {
             rethrowFatal(ex);
             if (auth != null) { auth.logout(); }
-            if (frame != null) { frame.dispose(); frame = null; }
+            closeFrame();
         }
     }
 
     private static void rethrowFatal(Throwable failure) {
         if (failure instanceof VirtualMachineError) { throw (VirtualMachineError) failure; }
         if (failure instanceof ThreadDeath) { throw (ThreadDeath) failure; }
+    }
+
+    private void closeFrame() {
+        Frame closing = frame;
+        frame = null;
+        if (closing == null) { return; }
+        try { closing.setVisible(false); } catch (Throwable ex) { rethrowFatal(ex); }
+        try { closing.dispose(); } catch (Throwable ex) { rethrowFatal(ex); }
+    }
+
+    private void showSafePanelOrClose() {
+        try {
+            if (frame != null) { frame.showSafeUnprivilegedState(); }
+        } catch (Throwable ex) {
+            rethrowFatal(ex);
+            closeFrame();
+        }
     }
 
     private void handleUnexpectedUiFailure() {
@@ -55,7 +72,7 @@ public class Main {
             dialog.setVisible(true);
         } catch (Throwable ex) {
             rethrowFatal(ex);
-            if (frame != null) { frame.dispose(); frame = null; }
+            closeFrame();
         }
     }
 
@@ -72,10 +89,10 @@ public class Main {
         access = new AccessControl(auth);
         userAdmin = new UserAdminService(auth, access);
         auth.setSessionRevokedListener(new Runnable() {
-            public void run() { if (frame != null) { frame.showSafeUnprivilegedState(); } }
+            public void run() { showSafePanelOrClose(); }
         });
         bundleBService = new BundleBService(databasePath, new AppSecurityGateway(auth, new Runnable() {
-            public void run() { if (frame != null) { frame.showSafeUnprivilegedState(); } }
+            public void run() { showSafePanelOrClose(); }
         }));
         try { bundleBService.initialize(); }
         catch (IllegalStateException ignored) { /* B remains unavailable and protected actions fail closed. */ }

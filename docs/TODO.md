@@ -119,7 +119,7 @@ app/submission/distribution/ is the standalone deliverable. It contains exactly 
 
 | Runtime artifact | SHA-256 |
 | --- | --- |
-| CSSECDV.jar | 1bdb09becacf08e40b99dadccff071b63fd57a542c8a42279fe95e2c8a8ba378 |
+| CSSECDV.jar | 097687ed5392c911c3df8a0685c9d038ed0bf57362a34ccd1301f9f692f7e470 |
 | database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
 | lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
 
@@ -174,7 +174,7 @@ All 29 scored items have implementation and representative behavior evidence. Th
 - [x] git diff --check passes.
 - [x] NetBeans 32 smoke launch (2026-11-19): Apache NetBeans 32 was installed and opened on a disposable candidate source snapshot at `2bdef76`; the application window launched and responded. This confirms a basic IDE open/build/run path, not complete security acceptance. The final source revision separately passed the integrated and packaged UI tests recorded above.
 
-Final boundary follow-up: the shared Swing failure boundary is installed before the window is shown and handles recoverable `RuntimeException` and `AssertionError` paths by revoking the session and returning to Login. Admin list storage errors are signaled as unavailable and outer mutation exceptions revoke the session. `ant -Dbuild.dir=build-boundary -Ddist.dir=dist-boundary -f app/build.xml test-regression-final-17 jar` passed (Bundle A 348 assertions, Bundle B, and real-display Swing). The packaged distribution smoke used a disposable database copy. A proposed targeted Admin-list SQLite fault fixture failed during identity refresh instead of reaching the list query, so no isolated list-query fault test is claimed; that handling was assessed by source review.
+Final boundary follow-up: the shared Swing failure boundary is installed before the window is shown and handles recoverable `RuntimeException` and `AssertionError` paths by revoking the session and returning to Login. Admin list storage errors are signaled as unavailable and outer mutation exceptions revoke the session. Recovery attempts to hide and dispose the frame if safe-panel navigation fails; disposal failures are contained. `ant -Dbuild.dir=build-boundary -Ddist.dir=dist-boundary -f app/build.xml test-regression-final-17 jar` passed (Bundle A 348 assertions, Bundle B, and real-display Swing). The packaged distribution smoke used a disposable database copy. A proposed targeted Admin-list SQLite fault fixture failed during identity refresh instead of reaching the list query, so no isolated list-query fault test is claimed; that handling was assessed by source review.
 
 ### Controller and database failure boundaries (#9)
 
