@@ -217,6 +217,11 @@ public class Frame extends javax.swing.JFrame {
     public void init(Main controller){
         this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         this.setTitle("CSSECDV - SECURITY Svcs");
+        adminBtn.setName("adminHomeButton");
+        managerBtn.setName("managerHomeButton");
+        staffBtn.setName("staffHomeButton");
+        clientBtn.setName("clientHomeButton");
+        logoutBtn.setName("logoutButton");
         this.setLocationRelativeTo(null);
         
         this.main = controller;
@@ -303,6 +308,8 @@ public class Frame extends javax.swing.JFrame {
     
     public void registerNav(){
         frameView.show(Container, "registerPnl");
+        Container.revalidate();
+        Container.repaint();
     }
 
     /** Ends any session, clears protected views and returns to the unprivileged login page. */

@@ -7,6 +7,10 @@ public class Login extends javax.swing.JPanel {
     
     public Login() {
         initComponents();
+        usernameFld.setName("loginUsername");
+        passwordFld.setName("loginPassword");
+        loginBtn.setName("loginButton");
+        registerBtn.setName("openRegistrationButton");
     }
 
     @SuppressWarnings("unchecked")

@@ -29,10 +29,17 @@ replay_pid*
 
 # Editable starter dependency, retained with its embedded license notices
 !/app/sqlite-jdbc-3.23.1.jar
+!/app/test-lib/assertj-swing-3.17.1.jar
+!/app/test-lib/assertj-core-3.17.2.jar
+!/app/test-lib/fest-util-1.2.5.jar
+!/app/submission/distribution/CSSECDV.jar
+!/app/submission/distribution/lib/sqlite-jdbc-3.23.1.jar
 
 # Local application and IDE output
 /app/build/
 /app/dist/
+/app/build-final-17/
+/app/dist-final-17/
 /app/nbproject/private/
 /app/database.db
 /app/database.db-*

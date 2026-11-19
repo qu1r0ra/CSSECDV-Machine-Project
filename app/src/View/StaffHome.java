@@ -32,6 +32,10 @@ public class StaffHome extends javax.swing.JPanel {
     }
     
     public void init(SQLite sqlite, BundleBService bundleB, UserAdminService userAdmin, AccessControl access){
+        usersBtn.setName("usersNavButton");
+        productsBtn.setName("productsNavButton");
+        historyBtn.setName("historyNavButton");
+        logsBtn.setName("logsNavButton");
         mgmtHistory = new MgmtHistory(bundleB);
         mgmtLogs = new MgmtLogs(sqlite, access);
         mgmtProduct = new MgmtProduct(bundleB);

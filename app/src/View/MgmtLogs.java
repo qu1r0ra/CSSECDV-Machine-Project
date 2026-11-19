@@ -22,6 +22,10 @@ public class MgmtLogs extends javax.swing.JPanel {
 
     public MgmtLogs(SQLite sqlite, AccessControl access) {
         initComponents();
+        searchField.setName("auditSearchField");
+        searchBtn.setName("auditSearchButton");
+        showAllBtn.setName("auditShowAllButton");
+        table.setName("auditTable");
         this.sqlite = sqlite;
         this.access = access;
         tableModel = (DefaultTableModel) table.getModel();

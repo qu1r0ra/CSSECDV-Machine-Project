@@ -60,6 +60,68 @@
             </classpath>
         </java>
     </target>
+    <target name="test-ui" depends="compile" description="Run AssertJ Swing journeys with a real desktop display and isolated temporary SQLite database.">
+        <mkdir dir="${build.test.classes.dir}"/>
+        <path id="ui.test.classpath">
+            <pathelement location="${build.classes.dir}"/>
+            <pathelement location="${file.reference.sqlite-jdbc-3.23.1.jar}"/>
+            <fileset dir="test-lib"><include name="*.jar"/></fileset>
+        </path>
+        <javac srcdir="${test.src.dir}" destdir="${build.test.classes.dir}" includes="Controller/SwingAcceptanceTest.java"
+               source="1.8" target="1.8" encoding="UTF-8" includeantruntime="false">
+            <classpath refid="ui.test.classpath"/>
+        </javac>
+        <java classname="Controller.SwingAcceptanceTest" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.test.classes.dir}"/>
+                <path refid="ui.test.classpath"/>
+            </classpath>
+            <jvmarg value="-Djava.awt.headless=false"/>
+            <jvmarg value="--add-opens=java.base/java.util=ALL-UNNAMED"/>
+        </java>
+    </target>
+    <target name="test-regression-final-17" depends="test-bundle-a,test-bundle-b,test-ui"
+            description="Run integrated A and B provider regressions plus real Swing journeys."/>
+    <target name="test-distribution" depends="compile" description="Exercise the packaged application against a copied demo database from the distribution directory.">
+        <fail message="Set -Ddistribution.dir to a standalone distribution copy and -Ddemo.credentials to the operator-only credential file.">
+            <condition><or><not><isset property="distribution.dir"/></not><not><isset property="demo.credentials"/></not></or></condition>
+        </fail>
+        <mkdir dir="${build.test.classes.dir}"/>
+        <path id="distribution.ui.compile.classpath">
+            <pathelement location="${build.classes.dir}"/>
+            <pathelement location="${file.reference.sqlite-jdbc-3.23.1.jar}"/>
+            <fileset dir="test-lib"><include name="*.jar"/></fileset>
+        </path>
+        <javac srcdir="${test.src.dir}" destdir="${build.test.classes.dir}" includes="Controller/SwingAcceptanceTest.java"
+               source="1.8" target="1.8" encoding="UTF-8" includeantruntime="false">
+            <classpath refid="distribution.ui.compile.classpath"/>
+        </javac>
+        <java classname="Controller.SwingAcceptanceTest" fork="true" failonerror="true" dir="${distribution.dir}">
+            <classpath>
+                <pathelement location="${build.test.classes.dir}"/>
+                <pathelement location="${distribution.dir}/CSSECDV.jar"/>
+                <pathelement location="${distribution.dir}/lib/sqlite-jdbc-3.23.1.jar"/>
+                <fileset dir="test-lib"><include name="*.jar"/></fileset>
+            </classpath>
+            <jvmarg value="-Djava.awt.headless=false"/>
+            <jvmarg value="--add-opens=java.base/java.util=ALL-UNNAMED"/>
+            <arg value="database.db"/>
+            <arg value="${demo.credentials}"/>
+        </java>
+    </target>
+    <target name="prepare-demo-database" depends="compile" description="Create a fresh database with four hashed demo accounts; never overwrites an existing target.">
+        <fail message="Set -Ddemo.database to a new database path and -Ddemo.credentials to an operator-only file outside this checkout.">
+            <condition><or><not><isset property="demo.database"/></not><not><isset property="demo.credentials"/></not></or></condition>
+        </fail>
+        <java classname="Controller.DemoAccountSeeder" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <pathelement location="${file.reference.sqlite-jdbc-3.23.1.jar}"/>
+            </classpath>
+            <arg value="${demo.database}"/>
+            <arg value="${demo.credentials}"/>
+        </java>
+    </target>
     <!--
 
     There exist several targets which are by default empty and which can be 

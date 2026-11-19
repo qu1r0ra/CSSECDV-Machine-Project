@@ -27,6 +27,11 @@ public class MgmtProduct extends javax.swing.JPanel {
     
     public MgmtProduct(BundleBService service) {
         initComponents();
+        table.setName("productTable");
+        purchaseBtn.setName("purchaseButton");
+        addBtn.setName("addProductButton");
+        editBtn.setName("editProductButton");
+        deleteBtn.setName("deleteProductButton");
         this.service = service;
         tableModel = (DefaultTableModel)table.getModel();
         table.getTableHeader().setFont(new java.awt.Font("SansSerif", java.awt.Font.BOLD, 14));

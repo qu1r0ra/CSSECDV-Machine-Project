@@ -10,7 +10,16 @@ import java.util.ArrayList;
  * to their validated service providers and must not bypass authorization or transaction policy.
  */
 public class SQLite {
-    private final SqliteSecurityAudit securityAudit = new SqliteSecurityAudit(Paths.get("database.db"));
+    private final SqliteSecurityAudit securityAudit;
+
+    public SQLite() {
+        this(Paths.get("database.db"));
+    }
+
+    /** Uses the caller-selected database so UI tests and packaged launches share one isolated store. */
+    public SQLite(java.nio.file.Path databasePath) {
+        securityAudit = new SqliteSecurityAudit(databasePath);
+    }
 
     /** The audit provider applies the centralized Role 5 check and parameterized search filters. */
     public ArrayList<Logs> getLogs(AccessControl access, String text, String event) {

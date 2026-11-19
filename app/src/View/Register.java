@@ -7,6 +7,11 @@ public class Register extends javax.swing.JPanel {
     
     public Register() {
         initComponents();
+        usernameFld.setName("registerUsername");
+        passwordFld.setName("registerPassword");
+        confpassFld.setName("registerConfirmPassword");
+        registerBtn.setName("registerButton");
+        backBtn.setName("backToLoginButton");
     }
 
     @SuppressWarnings("unchecked")

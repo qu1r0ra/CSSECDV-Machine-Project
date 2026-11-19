@@ -1,42 +1,34 @@
 package Controller;
 
-
-import Model.History;
-import Model.Logs;
-import Model.Product;
-import Model.User;
 import View.Frame;
-import java.sql.Timestamp;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Date;
-
-
 
 public class Main {
-    
     public SQLite sqlite;
     public BundleBService bundleBService;
     public AuthService auth;
     public AccessControl access;
     public UserAdminService userAdmin;
     private Frame frame;
-    
+
     public static void main(String[] args) {
         new Main().init();
     }
-    
-    public void init(){
-        // Initialize a driver object
-        sqlite = new SQLite();
-        Path databasePath = Paths.get("database.db");
+
+    public void init() {
+        init(Paths.get("database.db"));
+    }
+
+    /** Initializes the application against the caller-selected database. */
+    public void init(Path databasePath) {
+        sqlite = new SQLite(databasePath);
         SqliteSecurityAudit audit = new SqliteSecurityAudit(databasePath);
         try { audit.initialize(); }
         catch (IllegalStateException ignored) { /* Required audit writes fail closed if storage is unavailable. */ }
         auth = new AuthService(databasePath, audit);
         try { auth.initialize(); }
-        catch (IllegalStateException ignored) { /* login then fails closed with a generic message */ }
+        catch (IllegalStateException ignored) { /* Login then fails closed with a generic message. */ }
         access = new AccessControl(auth);
         userAdmin = new UserAdminService(auth, access);
         auth.setSessionRevokedListener(new Runnable() {
@@ -46,86 +38,11 @@ public class Main {
             public void run() { if (frame != null) { frame.showSafeUnprivilegedState(); } }
         }));
         try { bundleBService.initialize(); }
-        catch (IllegalStateException ignored) { /* B remains unavailable and all protected actions fail closed. */ }
+        catch (IllegalStateException ignored) { /* B remains unavailable and protected actions fail closed. */ }
 
-//        // Create a database
-//        sqlite.createNewDatabase();
-//        
-//        // Drop users table if needed
-//        sqlite.dropHistoryTable();
-//        sqlite.dropProductTable();
-//        sqlite.dropUserTable();
-//        
-//        // Create users table if not exist
-//        sqlite.createHistoryTable();
-//        sqlite.createLogsTable();
-//        sqlite.createProductTable();
-//        sqlite.createUserTable();
-//        
-//        // Add sample history
-//        sqlite.addHistory("admin", "Antivirus", 1, "2019-04-03 14:30:00.000");
-//        sqlite.addHistory("manager", "Firewall", 1, "2019-04-03 14:30:01.000");
-//        sqlite.addHistory("staff", "Scanner", 1, "2019-04-03 14:30:02.000");
-//        
-//        // Add sample logs
-//        sqlite.addLogs("NOTICE", "admin", "User creation successful", new Timestamp(new Date().getTime()).toString());
-//        sqlite.addLogs("NOTICE", "manager", "User creation successful", new Timestamp(new Date().getTime()).toString());
-//        sqlite.addLogs("NOTICE", "admin", "User creation successful", new Timestamp(new Date().getTime()).toString());
-//        
-//        // Add sample product
-//        sqlite.addProduct("Antivirus", 5, 500.0);
-//        sqlite.addProduct("Firewall", 3, 1000.0);
-//        sqlite.addProduct("Scanner", 10, 100.0);
-//
-//        // Add sample users
-//        sqlite.addUser("admin", "qwerty1234" , 5);
-//        sqlite.addUser("manager", "qwerty1234", 4);
-//        sqlite.addUser("staff", "qwerty1234", 3);
-//        sqlite.addUser("client1", "qwerty1234", 2);
-//        sqlite.addUser("client2", "qwerty1234", 2);
-//        
-//        
-//        // Get users
-//        ArrayList<History> histories = sqlite.getHistory();
-//        for(int nCtr = 0; nCtr < histories.size(); nCtr++){
-//            System.out.println("===== History " + histories.get(nCtr).getId() + " =====");
-//            System.out.println(" Username: " + histories.get(nCtr).getUsername());
-//            System.out.println(" Name: " + histories.get(nCtr).getName());
-//            System.out.println(" Stock: " + histories.get(nCtr).getStock());
-//            System.out.println(" Timestamp: " + histories.get(nCtr).getTimestamp());
-//        }
-//        
-//        // Get users
-//        ArrayList<Logs> logs = sqlite.getLogs(access, "", "");
-//        for(int nCtr = 0; nCtr < logs.size(); nCtr++){
-//            System.out.println("===== Logs " + logs.get(nCtr).getId() + " =====");
-//            System.out.println(" Username: " + logs.get(nCtr).getEvent());
-//            System.out.println(" Password: " + logs.get(nCtr).getUsername());
-//            System.out.println(" Role: " + logs.get(nCtr).getDesc());
-//            System.out.println(" Timestamp: " + logs.get(nCtr).getTimestamp());
-//        }
-//        
-//        // Get users
-//        ArrayList<Product> products = sqlite.getProduct();
-//        for(int nCtr = 0; nCtr < products.size(); nCtr++){
-//            System.out.println("===== Product " + products.get(nCtr).getId() + " =====");
-//            System.out.println(" Name: " + products.get(nCtr).getName());
-//            System.out.println(" Stock: " + products.get(nCtr).getStock());
-//            System.out.println(" Price: " + products.get(nCtr).getPrice());
-//        }
-//        // Get users
-//        ArrayList<User> users = sqlite.getUsers();
-//        for(int nCtr = 0; nCtr < users.size(); nCtr++){
-//            System.out.println("===== User " + users.get(nCtr).getId() + " =====");
-//            System.out.println(" Username: " + users.get(nCtr).getUsername());
-//            System.out.println(" Password: " + users.get(nCtr).getPassword());
-//            System.out.println(" Role: " + users.get(nCtr).getRole());
-//            System.out.println(" Locked: " + users.get(nCtr).getLocked());
-//        }
-        
-        // Initialize User Interface
         frame = new Frame();
         frame.init(this);
     }
-    
+
+    public Frame getFrame() { return frame; }
 }

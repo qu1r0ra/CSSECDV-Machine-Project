@@ -38,8 +38,8 @@ public class History {
         this.stock = stock;
         try {
             this.timestamp = new Timestamp(dateformat.parse(timestamp).getTime());
-        } catch (ParseException ex) {
-            ex.printStackTrace();
+        } catch (ParseException ignored) {
+            this.timestamp = null;
         }
     }
     
