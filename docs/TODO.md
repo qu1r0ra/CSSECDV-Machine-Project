@@ -157,11 +157,11 @@ Only criteria with recorded implementation and behavior evidence are checked. 28
 - [x] A/B actual-provider regression and real-display Swing suite pass.
 - [x] Copy-based standalone distribution UI suite and direct JAR launch pass; delivery DB remains unchanged.
 - [x] git diff --check passes.
-- [ ] NetBeans open/build attempt: unavailable on this machine. Get-Command netbeans found no executable, and C:\Program Files\NetBeans / C:\Program Files\Apache NetBeans do not exist. Ant test/package targets build the finished project successfully; a NetBeans result cannot be claimed.
+- [x] NetBeans 32 smoke launch (2026-11-19): Apache NetBeans 32 was installed and opened on a disposable candidate source snapshot at `2bdef76`; the application window launched and responded. This confirms a basic IDE open/build/run path, not complete security acceptance. Repeat on the final source revision before submission.
 
 ### Reconciliation and remaining gap
 
-The tested artifacts satisfy the issue #17 delivery scope against the assignment materials, rubric/checklist, #15, and settled Bundle B. The settled #15/#16 constraints are preserved: there is no permanent audit-delete action, required audit-write failures fail closed, the test and distribution-smoke databases are isolated, and recorded evidence reflects executed commands. No test passwords or demo plaintext credentials are tracked. The remaining checklist gap is 2.4.3's broad all-method crash-boundary claim; NetBeans is unavailable as noted above. Keep 2.4.3 unchecked unless further whole-application failure coverage supports it.
+The tested artifacts satisfy the issue #17 delivery scope against the assignment materials, rubric/checklist, #15, and settled Bundle B. The settled #15/#16 constraints are preserved: there is no permanent audit-delete action, required audit-write failures fail closed, the test and distribution-smoke databases are isolated, and recorded evidence reflects executed commands. No test passwords or demo plaintext credentials are tracked. The remaining checklist gap is 2.4.3's broad all-method crash-boundary claim; keep it unchecked unless further whole-application failure coverage supports it. The NetBeans smoke launch was on the `2bdef76` disposable snapshot and must be repeated against the final source revision.
 
 ## Scheduling and later decisions
 
