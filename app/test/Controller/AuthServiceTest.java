@@ -331,18 +331,32 @@ public final class AuthServiceTest {
             check(!f.auth.verifyCurrentPassword(actor, "Wrong!Pass1".toCharArray()), "wrong current password fails");
             int validationBefore = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='client1'");
             int authFailureBefore = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='AUTH_FAILURE' AND username='client1'");
+            int reauthBeforeMalformed = Integer.parseInt(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='client1'"));
             check(!f.auth.verifyCurrentPassword(actor, "bad secret".toCharArray()), "malformed current password fails");
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='client1'") == validationBefore + 1
                     && count(f.db, "SELECT COUNT(*) FROM logs WHERE event='AUTH_FAILURE' AND username='client1'") == authFailureBefore + 1,
                     "malformed re-authentication records both validation and authentication failures");
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE '%bad secret%'") == 0
-                    && "0".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='client1'")),
-                    "malformed re-authentication does not log password data or increment login failures");
-            check(!f.auth.verifyCurrentPassword(new BundleBService.Actor(actor.getUserId(), actor.getUsername(), actor.getRole(), actor.getSessionGeneration() + 1), GOOD.toCharArray()), "stale actor cannot re-authenticate");
+                    && "0".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='client1'"))
+                    && Integer.parseInt(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='client1'")) == reauthBeforeMalformed + 1,
+                    "malformed re-authentication keeps login failures unchanged and increments only its separate counter");
+            BundleBService.Actor forged = new BundleBService.Actor(actor.getUserId(), "forged-user", actor.getRole(), actor.getSessionGeneration());
+            int totalAudits = count(f.db, "SELECT COUNT(*) FROM logs");
+            int reauthBeforeForged = Integer.parseInt(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='client1'"));
+            check(!f.auth.verifyCurrentPassword(forged, "bad secret".toCharArray()), "forged actor cannot submit malformed re-authentication");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE username='forged-user'") == 0
+                    && count(f.db, "SELECT COUNT(*) FROM logs") == totalAudits
+                    && Integer.parseInt(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='client1'")) == reauthBeforeForged,
+                    "forged actor is rejected without attribution, audit, or counter changes");
+            BundleBService.Actor stale = new BundleBService.Actor(actor.getUserId(), actor.getUsername(), actor.getRole(), actor.getSessionGeneration() + 1);
+            check(!f.auth.verifyCurrentPassword(stale, "bad secret".toCharArray()), "stale actor cannot submit malformed re-authentication");
+            check(count(f.db, "SELECT COUNT(*) FROM logs") == totalAudits
+                    && Integer.parseInt(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='client1'")) == reauthBeforeForged,
+                    "stale actor is rejected without recording a re-authentication failure");
             for (int i = 0; i < 4; i++) { f.auth.verifyCurrentPassword(actor, "Wrong!Pass1".toCharArray()); }
             check("2".equals(f.role("client1")) && f.auth.currentActor() != null,
                     "failed re-authentication does not count as a failed login or disable the account");
-            check("5".equals(scalar(f.db, "SELECT reauth_failures FROM users WHERE username = ?", "client1")),
+            check("6".equals(scalar(f.db, "SELECT reauth_failures FROM users WHERE username = ?", "client1")),
                     "reauthentication failures are tracked separately");
             check(f.auth.verifyCurrentPassword(actor, GOOD.toCharArray())
                     && "0".equals(scalar(f.db, "SELECT reauth_failures FROM users WHERE username = ?", "client1")),
@@ -748,14 +762,16 @@ public final class AuthServiceTest {
             execute(f.db, "CREATE TRIGGER refuse_invalid_reauth BEFORE INSERT ON logs WHEN NEW.event='AUTH_FAILURE' AND NEW.\"desc\"='invalid re-authentication input' BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
             int validations = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='admin1'");
             int loginFailures = Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='admin1'"));
+            int reauthFailures = Integer.parseInt(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='admin1'"));
             boolean failed = false;
             try { f.auth.verifyCurrentPassword(f.auth.currentActor(), "bad secret".toCharArray()); }
             catch (IllegalStateException expected) { failed = "Verification unavailable.".equals(expected.getMessage()); }
             check(failed && f.auth.currentActor() == null && safeFallbacks[0] == 1,
                     "required malformed re-authentication audit failure revokes the session and invokes safe fallback");
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='admin1'") == validations
-                    && Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='admin1'")) == loginFailures,
-                    "malformed re-authentication audit is atomic and does not alter the login-failure counter");
+                    && Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username='admin1'")) == loginFailures
+                    && Integer.parseInt(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='admin1'")) == reauthFailures,
+                    "malformed re-authentication audit is atomic and rolls back both counters");
         } finally { f.close(); }
     }
 

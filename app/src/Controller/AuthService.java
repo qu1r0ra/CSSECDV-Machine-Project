@@ -249,33 +249,28 @@ public final class AuthService {
      * Throws IllegalStateException when storage is unavailable so callers can fall back safely.
      */
     public boolean verifyCurrentPassword(BundleBService.Actor actor, char[] password) {
+        Session s = session;
         try {
-            if (!InputValidator.isValidPasswordShape(password)) {
-                try (Connection c = store.open()) {
-                    c.setAutoCommit(false);
-                    try {
-                        String username = actor == null ? "UNKNOWN" : actor.getUsername();
-                        audit.record(c, "VALIDATION_FAILURE", username, "re-authentication input rejected");
-                        audit.record(c, "AUTH_FAILURE", username, "invalid re-authentication input");
-                        c.commit();
-                    } catch (Exception ex) {
-                        rollbackQuietly(c);
-                        throw ex;
-                    }
-                } catch (Exception ex) {
-                    failSafeSession();
-                    throw new IllegalStateException("Verification unavailable.");
-                }
-                return false;
-            }
-            Session s = session;
             BundleBService.Actor now = currentActor();
-            if (s == null || !sameSession(actor, now)) { return false; }
+            if (s == null || s != session || !sameSession(actor, now)) { return false; }
+            boolean malformedInput = !InputValidator.isValidPasswordShape(password);
             try (Connection c = store.open()) {
                 c.setAutoCommit(false);
                 try {
                     AccountStore.Account a = store.findById(c, s.userId);
-                    if (a == null || !a.isActive()) { rollbackQuietly(c); revoke(s); return false; }
+                    if (a == null || !a.isActive() || a.role != s.role || !a.username.equals(s.username)
+                            || s != session) {
+                        rollbackQuietly(c);
+                        revoke(s);
+                        return false;
+                    }
+                    if (malformedInput) {
+                        store.recordReauthenticationFailure(c, a.id);
+                        audit.record(c, "VALIDATION_FAILURE", a.username, "re-authentication input rejected");
+                        audit.record(c, "AUTH_FAILURE", a.username, "invalid re-authentication input");
+                        c.commit();
+                        return false;
+                    }
                     if (PasswordHasher.verify(password, a.passwordHash)) {
                         store.resetReauthenticationFailures(c, a.id);
                         audit.record(c, "AUTH_SUCCESS", a.username, "re-authentication");
@@ -288,16 +283,18 @@ public final class AuthService {
                     return false;
                 } catch (SQLException ex) {
                     rollbackQuietly(c);
-                    failSafeSession();
+                    revoke(s);
                     throw ex;
                 } catch (RuntimeException ex) {
                     rollbackQuietly(c);
-                    failSafeSession();
+                    revoke(s);
+                    if (malformedInput) { throw new IllegalStateException("Verification unavailable."); }
                     throw ex;
                 }
             }
         } catch (SQLException ex) {
-            throw new IllegalStateException("Verification unavailable");
+            revoke(s);
+            throw new IllegalStateException("Verification unavailable.");
         } finally {
             clear(password);
         }
