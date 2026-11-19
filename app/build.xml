@@ -87,7 +87,7 @@
             <condition><or><not><isset property="distribution.dir"/></not><not><isset property="demo.credentials"/></not></or></condition>
         </fail>
         <property name="distribution.smoke.database" location="${build.dir}/distribution-smoke/database.db"/>
-        <checksum file="${distribution.dir}/database.db" property="distribution.database.sha.before"/>
+        <checksum file="${distribution.dir}/database.db" algorithm="SHA-256" property="distribution.database.sha.before"/>
         <mkdir dir="${build.dir}/distribution-smoke"/>
         <copy file="${distribution.dir}/database.db" tofile="${distribution.smoke.database}" overwrite="true"/>
         <mkdir dir="${build.test.classes.dir}"/>
@@ -100,7 +100,8 @@
                source="1.8" target="1.8" encoding="UTF-8" includeantruntime="false">
             <classpath refid="distribution.ui.compile.classpath"/>
         </javac>
-        <java classname="Controller.SwingAcceptanceTest" fork="true" failonerror="true" dir="${distribution.dir}">
+        <java classname="Controller.SwingAcceptanceTest" fork="true" failonerror="false"
+              resultproperty="distribution.test.exit" dir="${distribution.dir}">
             <classpath>
                 <pathelement location="${build.test.classes.dir}"/>
                 <pathelement location="${distribution.dir}/CSSECDV.jar"/>
@@ -112,11 +113,16 @@
             <arg value="${distribution.smoke.database}"/>
             <arg value="${demo.credentials}"/>
         </java>
-        <checksum file="${distribution.dir}/database.db" property="distribution.database.sha.after"/>
+        <checksum file="${distribution.dir}/database.db" algorithm="SHA-256" property="distribution.database.sha.after"/>
         <condition property="distribution.database.preserved">
             <equals arg1="${distribution.database.sha.before}" arg2="${distribution.database.sha.after}"/>
         </condition>
         <fail unless="distribution.database.preserved" message="Standalone smoke test changed the delivered database."/>
+        <fail unless="distribution.test.exit" message="Standalone smoke test did not return an exit status."/>
+        <condition property="distribution.test.passed">
+            <equals arg1="${distribution.test.exit}" arg2="0"/>
+        </condition>
+        <fail unless="distribution.test.passed" message="Standalone distribution UI smoke test failed (database preservation was checked)."/>
     </target>
     <target name="prepare-demo-database" depends="compile" description="Create a fresh database with four hashed demo accounts; never overwrites an existing target.">
         <fail message="Set -Ddemo.database to a new database path and -Ddemo.credentials to an operator-only file outside this checkout.">

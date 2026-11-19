@@ -92,6 +92,7 @@ public final class UserAdminService {
                     return ok ? new Result(true, locked ? "Account locked." : "Account unlocked.") : new Result(false, FAILED);
                 } catch (Exception ex) {
                     rollback(c);
+                    auth.failSafeSession();
                     return new Result(false, FAILED);
                 }
             }
@@ -116,6 +117,7 @@ public final class UserAdminService {
                     return ok ? new Result(true, "User deleted.") : new Result(false, FAILED);
                 } catch (Exception ex) {
                     rollback(c);
+                    auth.failSafeSession();
                     return new Result(false, FAILED);
                 }
             }
@@ -147,6 +149,7 @@ public final class UserAdminService {
                     return ok ? new Result(true, "Password updated.") : new Result(false, FAILED);
                 } catch (Exception ex) {
                     rollback(c);
+                    auth.failSafeSession();
                     return new Result(false, FAILED);
                 }
             }

@@ -126,13 +126,21 @@ public final class AuthService {
                 c.setAutoCommit(false);
                 try {
                     AccountStore.Account a = store.findByUsername(c, username);
+                    boolean validShape = InputValidator.isValidPasswordShape(password);
                     if (a == null) {
-                        if (InputValidator.isValidPasswordShape(password)) { PasswordHasher.verifyAgainstDummy(password); }
+                        if (validShape) { PasswordHasher.verifyAgainstDummy(password); }
+                        else { audit.record(c, "VALIDATION_FAILURE", "UNKNOWN", "login password input rejected"); }
                         audit.record(c, "AUTH_FAILURE", username, "unknown account");
                         c.commit();
                         return LoginResult.failed();
                     }
-                    if (!InputValidator.isValidPasswordShape(password)) {
+                    if (!a.isActive()) {
+                        if (!validShape) { audit.record(c, "VALIDATION_FAILURE", a.username, "login password input rejected"); }
+                        audit.record(c, "AUTH_FAILURE", a.username, "account disabled or locked");
+                        c.commit();
+                        return LoginResult.failed();
+                    }
+                    if (!validShape) {
                         boolean disabled = store.recordFailure(c, a.id, Instant.now().toString());
                         audit.record(c, "VALIDATION_FAILURE", a.username, "login password input rejected");
                         audit.record(c, "AUTH_FAILURE", a.username, "invalid credentials");
@@ -145,11 +153,6 @@ public final class AuthService {
                         return LoginResult.failed();
                     }
                     boolean matches = PasswordHasher.verify(password, a.passwordHash);
-                    if (!a.isActive()) {
-                        audit.record(c, "AUTH_FAILURE", a.username, "account disabled or locked");
-                        c.commit();
-                        return LoginResult.failed();
-                    }
                     String now = Instant.now().toString();
                     if (!matches) {
                         boolean disabled = store.recordFailure(c, a.id, now);
@@ -226,7 +229,12 @@ public final class AuthService {
     public boolean verifyCurrentPassword(BundleBService.Actor actor, char[] password) {
         try {
             if (!InputValidator.isValidPasswordShape(password)) {
-                recordStandalone("VALIDATION_FAILURE", actor == null ? "UNKNOWN" : actor.getUsername(), "re-authentication input rejected");
+                try {
+                    recordStandalone("VALIDATION_FAILURE", actor == null ? "UNKNOWN" : actor.getUsername(), "re-authentication input rejected");
+                } catch (RuntimeException ex) {
+                    failSafeSession();
+                    throw new IllegalStateException("Verification unavailable.");
+                }
                 return false;
             }
             Session s = session;
@@ -249,9 +257,11 @@ public final class AuthService {
                     return false;
                 } catch (SQLException ex) {
                     rollbackQuietly(c);
+                    failSafeSession();
                     throw ex;
                 } catch (RuntimeException ex) {
                     rollbackQuietly(c);
+                    failSafeSession();
                     throw ex;
                 }
             }

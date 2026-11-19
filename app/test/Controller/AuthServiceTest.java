@@ -25,6 +25,7 @@ public final class AuthServiceTest {
         registrationEnforcesPolicyAndAssignsClientRole();
         duplicateAndCaseVariantUsernamesGiveTheGenericFailure();
         loginFailuresAreIndistinguishable();
+        malformedAndLockedLoginAttemptsAreHandledConsistently();
         lockoutHappensOnTheFifthConsecutiveFailureOnly();
         disabledAccountCannotLoginEvenWithCorrectPassword();
         lastLoginAttemptIsReportedOnSuccess();
@@ -37,6 +38,7 @@ public final class AuthServiceTest {
         authenticationRollsBackWhenAuditPersistenceFails();
         registrationRollsBackWhenAuditPersistenceFails();
         userAdministrationRollsBackWhenAuditPersistenceFails();
+        reauthenticationAuditFailureRevokesSession();
         auditProviderPersistsFiltersAndRestrictsLogReview();
         unexpectedDatabaseFailuresRevokeSessionsAndDenyControllers();
         failsClosedWhenStorageIsUnavailable();
@@ -143,6 +145,35 @@ public final class AuthServiceTest {
             check("3".equals(f.role("staff1")), "malformed-input lockout case remains enabled after four valid-shaped failures");
             check(AuthService.GENERIC_LOGIN_FAILURE.equals(f.auth.login("staff1", repeat('x', 65).toCharArray()).getMessage())
                     && "1".equals(f.role("staff1")), "oversized password submission is the fifth consecutive failure and locks the known account");
+        } finally { f.close(); }
+    }
+
+    private static void malformedAndLockedLoginAttemptsAreHandledConsistently() throws Exception {
+        Fixture f = new Fixture();
+        try {
+            int validationBefore = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='UNKNOWN'");
+            int authBefore = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='AUTH_FAILURE' AND username='neverhere'");
+            f.auth.login("neverhere", "No Secret".toCharArray());
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='UNKNOWN'") == validationBefore + 1
+                    && count(f.db, "SELECT COUNT(*) FROM logs WHERE event='AUTH_FAILURE' AND username='neverhere'") == authBefore + 1,
+                    "malformed unknown-user password records validation and authentication failure");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE '%No Secret%'") == 0,
+                    "malformed unknown-user audit records do not contain the submitted secret");
+
+            f.seed("temp-lock", 3, GOOD);
+            execute(f.db, "UPDATE users SET locked=1, failed_attempts=3 WHERE username=?", "temp-lock");
+            f.auth.login("temp-lock", new char[0]);
+            f.auth.login("temp-lock", "Wrong!Pass1".toCharArray());
+            check("3".equals(scalar(f.db, "SELECT role FROM users WHERE username=?", "temp-lock"))
+                    && "3".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username=?", "temp-lock")),
+                    "malformed and valid-shaped attempts against a temporary lock preserve its state");
+
+            f.auth.login("client1", new char[0]);
+            AuthService.LoginResult next = f.auth.login("client1", GOOD.toCharArray());
+            check(next.isSuccess() && next.describePreviousAttempt().contains("FAILED")
+                    && next.describePreviousAttempt().contains("20")
+                    && next.describePreviousAttempt().contains("Failed attempts since your last successful login: 1"),
+                    "next valid login reports malformed input as a timestamped failed attempt");
         } finally { f.close(); }
     }
 
@@ -503,7 +534,28 @@ public final class AuthServiceTest {
             audit.initialize();
             check(count(f.db, "SELECT COUNT(*) FROM logs") == beforeUpgrade && count(f.db, "SELECT COUNT(*) FROM users") == 5,
                     "repeated audit initialization preserves logs and existing application data");
+
+            admin.logout();
+            check(admin.login("admin1", GOOD.toCharArray()).isSuccess(), "Admin signs in for audit query outage UI check");
+            adminLogPanel.searchLogs("");
+            execute(f.db, "DROP TABLE logs");
+            boolean queryFailed = false;
+            try { uiStore.getLogs(new AccessControl(admin), "", ""); }
+            catch (IllegalStateException expected) { queryFailed = "Security logs are unavailable.".equals(expected.getMessage()); }
+            check(queryFailed, "public SQLite.getLogs reports a generic failure instead of false empty success");
+            adminLogPanel.searchLogs("");
+            check(adminLogPanel.tableModel.getRowCount() == 0
+                    && hasLabelText(adminLogPanel, "Audit records are unavailable right now."),
+                    "Admin log UI clears stale records and shows a safe outage message when query storage fails");
         } finally { f.close(); }
+    }
+
+    private static boolean hasLabelText(java.awt.Container container, String expected) {
+        for (java.awt.Component component : container.getComponents()) {
+            if (component instanceof javax.swing.JLabel && expected.equals(((javax.swing.JLabel) component).getText())) { return true; }
+            if (component instanceof java.awt.Container && hasLabelText((java.awt.Container) component, expected)) { return true; }
+        }
+        return false;
     }
 
     private static void registrationRollsBackWhenAuditPersistenceFails() throws Exception {
@@ -528,35 +580,56 @@ public final class AuthServiceTest {
     }
 
     private static void userAdministrationRollsBackWhenAuditPersistenceFails() throws Exception {
-        Fixture f = new Fixture();
-        try {
-            final SqliteSecurityAudit backing = new SqliteSecurityAudit(f.db);
-            backing.initialize();
-            SecurityAudit unavailableForAdminChanges = new SecurityAudit() {
-                public void record(String event, String username, String detail) {
-                    if ("USER_ADMIN".equals(event)) { throw new IllegalStateException("audit storage unavailable"); }
-                    backing.record(event, username, detail);
-                }
-                public void record(Connection connection, String event, String username, String detail) {
-                    if ("USER_ADMIN".equals(event)) { throw new IllegalStateException("audit storage unavailable"); }
-                    backing.record(connection, event, username, detail);
-                }
-            };
-            AuthService auth = new AuthService(f.db, unavailableForAdminChanges);
-            auth.initialize();
-            check(auth.login("admin1", GOOD.toCharArray()).isSuccess(), "admin can sign in while the audit provider is available for authentication");
-            UserAdminService admin = new UserAdminService(auth, new AccessControl(auth));
-            final int[] safeFallbacks = {0};
-            auth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
+        for (final String operation : new String[] {"role", "lock", "unlock", "delete", "password"}) {
+            Fixture f = new Fixture();
+            try {
+                check(f.auth.login("admin1", GOOD.toCharArray()).isSuccess(), "Admin signs in before " + operation + " failure");
+                final int[] safeFallbacks = {0};
+                f.auth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
+                execute(f.db, "CREATE TRIGGER refuse_user_admin BEFORE INSERT ON logs WHEN NEW.event='USER_ADMIN' BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
+                UserAdminService.Result result;
+                if ("role".equals(operation)) { result = f.admin.changeRole(f.id("client2"), "3", GOOD.toCharArray()); }
+                else if ("lock".equals(operation)) { result = f.admin.setLocked(f.id("client2"), true); }
+                else if ("unlock".equals(operation)) {
+                    execute(f.db, "UPDATE users SET locked=1 WHERE username='client2'");
+                    result = f.admin.setLocked(f.id("client2"), false);
+                } else if ("delete".equals(operation)) { result = f.admin.deleteUser(f.id("client2"), GOOD.toCharArray()); }
+                else { result = f.admin.changePassword(f.id("client2"), "Other!Pass2".toCharArray(), "Other!Pass2".toCharArray(), GOOD.toCharArray()); }
+                check(!result.isSuccess() && "The action could not be completed.".equals(result.getMessage()),
+                        operation + " returns a generic failure when audit persistence fails");
+                check("2".equals(f.role("client2")) && "0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE event='USER_ADMIN'")),
+                        operation + " mutation rolls back and leaves no success audit record");
+                if ("lock".equals(operation)) { check("0".equals(scalar(f.db, "SELECT locked FROM users WHERE username='client2'")), "failed lock rolls back"); }
+                if ("unlock".equals(operation)) { check("1".equals(scalar(f.db, "SELECT locked FROM users WHERE username='client2'")), "failed unlock rolls back"); }
+                if ("delete".equals(operation)) { check("1".equals(scalar(f.db, "SELECT COUNT(*) FROM users WHERE username='client2'")), "failed delete rolls back"); }
+                if ("password".equals(operation)) { check(!PasswordHasher.verify("Other!Pass2".toCharArray(), scalar(f.db, "SELECT password FROM users WHERE username='client2'")), "failed password change rolls back"); }
+                check(f.auth.currentActor() == null && safeFallbacks[0] == 1,
+                        operation + " audit failure revokes Admin session and invokes safe-state fallback");
+            } finally { f.close(); }
+        }
+    }
 
-            UserAdminService.Result result = admin.changeRole(f.id("client2"), "3", GOOD.toCharArray());
-            check(!result.isSuccess(), "account change reports failure when its required audit write fails");
-            check("2".equals(f.role("client2")), "role change rolls back when its audit record cannot persist");
-            check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'USER_ADMIN'")),
-                    "failed account change does not leave a success audit record");
-            check(auth.currentActor() == null && safeFallbacks[0] == 1,
-                    "failed required role-change audit revokes the privileged session and invokes safe-state fallback");
-        } finally { f.close(); }
+    private static void reauthenticationAuditFailureRevokesSession() throws Exception {
+        for (final boolean validPassword : new boolean[] {true, false}) {
+            Fixture f = new Fixture();
+            try {
+                check(f.auth.login("admin1", GOOD.toCharArray()).isSuccess(), "Admin signs in before re-authentication audit failure");
+                execute(f.db, "UPDATE users SET reauth_failures=2 WHERE username='admin1'");
+                final int[] safeFallbacks = {0};
+                f.auth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
+                final String detail = validPassword ? "re-authentication" : "re-authentication failed";
+                execute(f.db, "CREATE TRIGGER refuse_reauth BEFORE INSERT ON logs WHEN NEW.\"desc\"='" + detail
+                        + "' BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
+                boolean failed = false;
+                boolean generic = false;
+                try { f.auth.verifyCurrentPassword(f.auth.currentActor(), (validPassword ? GOOD : "Wrong!Pass1").toCharArray()); }
+                catch (IllegalStateException expected) { failed = true; generic = "Security audit storage is unavailable.".equals(expected.getMessage()); }
+                check(failed && generic && f.auth.currentActor() == null && safeFallbacks[0] == 1,
+                        "required " + detail + " audit failure revokes Admin session and invokes safe fallback");
+                check("2".equals(scalar(f.db, "SELECT reauth_failures FROM users WHERE username='admin1'")),
+                        "failed " + detail + " audit rolls back its associated re-authentication update");
+            } finally { f.close(); }
+        }
     }
 
     // ------------------------------------------------------------------ helpers
