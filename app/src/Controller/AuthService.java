@@ -218,8 +218,9 @@ public final class AuthService {
     // ---------------------------------------------------------------- re-authentication
 
     /**
-     * Confirms the signed-in user's password before a critical operation. A wrong password counts toward the
-     * same five-failure lockout; reaching it disables the account and ends the session.
+     * Confirms the signed-in user's password before a critical operation. A wrong password increments the
+     * separate re-authentication failure counter and is audited; it does not contribute to the five-failed-login
+     * lockout or disable the account.
      * Throws IllegalStateException when storage is unavailable so callers can fall back safely.
      */
     public boolean verifyCurrentPassword(BundleBService.Actor actor, char[] password) {
