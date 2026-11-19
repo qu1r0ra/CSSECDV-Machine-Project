@@ -232,6 +232,10 @@ public class Frame extends javax.swing.JFrame {
         clientHomePnl.init(main.sqlite, main.bundleBService, main.userAdmin, main.access);
         managerHomePnl.init(main.sqlite, main.bundleBService, main.userAdmin, main.access);
         staffHomePnl.init(main.sqlite, main.bundleBService, main.userAdmin, main.access);
+        adminHomePnl.setName("adminHomePnl");
+        managerHomePnl.setName("managerHomePnl");
+        staffHomePnl.setName("staffHomePnl");
+        clientHomePnl.setName("clientHomePnl");
         hideRoleButtons();
         
         Container.setLayout(frameView);

@@ -138,7 +138,7 @@ public final class BundleBService {
                         statement.executeUpdate();
                         try (ResultSet keys = statement.getGeneratedKeys()) { id = keys.next() ? keys.getInt(1) : lastInsertId(connection); }
                     }
-                    auditWriter.append(connection, new AuditEvent(actor, "PRODUCT_ADD", "product:" + id, "SUCCESS", utcNow()));
+                    appendRequiredAudit(connection, new AuditEvent(actor, "PRODUCT_ADD", "product:" + id, "SUCCESS", utcNow()));
                     connection.commit();
                     return Result.success(new CatalogProduct(id, name, stock, Long.valueOf(priceMinor), 0));
                 } catch (SQLException ex) {
@@ -195,12 +195,12 @@ public final class BundleBService {
                         logOutcome(actor, "PRODUCT_EDIT", "product:" + expected.id, "CONFLICT");
                         return Result.failure(Status.CONFLICT);
                     }
-                    auditWriter.append(connection, new AuditEvent(actor, "PRODUCT_EDIT", "product:" + expected.id, "SUCCESS", utcNow()));
+                    appendRequiredAudit(connection, new AuditEvent(actor, "PRODUCT_EDIT", "product:" + expected.id, "SUCCESS", utcNow()));
                     connection.commit();
                     return Result.success(new CatalogProduct(expected.id, name, stock, Long.valueOf(priceMinor), expected.version + 1));
                 } catch (Exception ex) {
                     rollback(connection);
-                    Status status = ex instanceof SQLException && isConstraint((SQLException) ex) ? Status.CONFLICT : Status.FAILURE;
+                    Status status = !(ex instanceof RequiredAuditFailure) && ex instanceof SQLException && isConstraint((SQLException) ex) ? Status.CONFLICT : Status.FAILURE;
                     logOutcome(actor, "PRODUCT_EDIT", "product:" + expected.id, status.name());
                     if (status == Status.FAILURE) { safeFallback(); }
                     return Result.failure(status);
@@ -235,7 +235,7 @@ public final class BundleBService {
                         logOutcome(actor, "PRODUCT_DELETE", "product:" + expected.id, "CONFLICT");
                         return Result.failure(Status.CONFLICT);
                     }
-                    auditWriter.append(connection, new AuditEvent(actor, "PRODUCT_DELETE", "product:" + expected.id, "SUCCESS", utcNow()));
+                    appendRequiredAudit(connection, new AuditEvent(actor, "PRODUCT_DELETE", "product:" + expected.id, "SUCCESS", utcNow()));
                     connection.commit();
                     return Result.success(null);
                 } catch (Exception ex) {
@@ -345,7 +345,7 @@ public final class BundleBService {
                     insert.executeUpdate();
                 }
                 long id = lastInsertId(connection);
-                auditWriter.append(connection, new AuditEvent(actor, "PURCHASE", "confirmation:" + quote.confirmationId,
+                appendRequiredAudit(connection, new AuditEvent(actor, "PURCHASE", "confirmation:" + quote.confirmationId,
                         "SUCCESS", purchasedAt));
                 connection.commit();
                 return Result.success(new PurchaseRecord(id, actor.userId, actor.username, quote.productId,
@@ -419,6 +419,16 @@ public final class BundleBService {
     }
 
     void setAuditWriterForTest(AuditWriter writer) { this.auditWriter = writer; }
+
+    private void appendRequiredAudit(Connection connection, AuditEvent event) throws RequiredAuditFailure {
+        try { auditWriter.append(connection, event); }
+        catch (Exception ex) { throw new RequiredAuditFailure(ex); }
+    }
+
+    private static final class RequiredAuditFailure extends Exception {
+        private static final long serialVersionUID = 1L;
+        RequiredAuditFailure(Exception cause) { super(cause); }
+    }
 
     private boolean allowedForDisplay(Operation operation) {
         try {

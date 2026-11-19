@@ -24,9 +24,11 @@ public class Main {
     public void init(Path databasePath) {
         sqlite = new SQLite(databasePath);
         SqliteSecurityAudit audit = new SqliteSecurityAudit(databasePath);
+        auth = new AuthService(databasePath, audit);
+        audit.bindTrustedAuth(auth);
+        sqlite.bindTrustedAuth(auth);
         try { audit.initialize(); }
         catch (IllegalStateException ignored) { /* Required audit writes fail closed if storage is unavailable. */ }
-        auth = new AuthService(databasePath, audit);
         try { auth.initialize(); }
         catch (IllegalStateException ignored) { /* Login then fails closed with a generic message. */ }
         access = new AccessControl(auth);

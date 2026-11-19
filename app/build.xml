@@ -86,6 +86,10 @@
         <fail message="Set -Ddistribution.dir to a standalone distribution copy and -Ddemo.credentials to the operator-only credential file.">
             <condition><or><not><isset property="distribution.dir"/></not><not><isset property="demo.credentials"/></not></or></condition>
         </fail>
+        <property name="distribution.smoke.database" location="${build.dir}/distribution-smoke/database.db"/>
+        <checksum file="${distribution.dir}/database.db" property="distribution.database.sha.before"/>
+        <mkdir dir="${build.dir}/distribution-smoke"/>
+        <copy file="${distribution.dir}/database.db" tofile="${distribution.smoke.database}" overwrite="true"/>
         <mkdir dir="${build.test.classes.dir}"/>
         <path id="distribution.ui.compile.classpath">
             <pathelement location="${build.classes.dir}"/>
@@ -105,9 +109,14 @@
             </classpath>
             <jvmarg value="-Djava.awt.headless=false"/>
             <jvmarg value="--add-opens=java.base/java.util=ALL-UNNAMED"/>
-            <arg value="database.db"/>
+            <arg value="${distribution.smoke.database}"/>
             <arg value="${demo.credentials}"/>
         </java>
+        <checksum file="${distribution.dir}/database.db" property="distribution.database.sha.after"/>
+        <condition property="distribution.database.preserved">
+            <equals arg1="${distribution.database.sha.before}" arg2="${distribution.database.sha.after}"/>
+        </condition>
+        <fail unless="distribution.database.preserved" message="Standalone smoke test changed the delivered database."/>
     </target>
     <target name="prepare-demo-database" depends="compile" description="Create a fresh database with four hashed demo accounts; never overwrites an existing target.">
         <fail message="Set -Ddemo.database to a new database path and -Ddemo.credentials to an operator-only file outside this checkout.">

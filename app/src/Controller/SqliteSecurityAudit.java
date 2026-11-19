@@ -19,10 +19,20 @@ public final class SqliteSecurityAudit implements SecurityAudit {
     private static final Pattern EVENT_FILTER = Pattern.compile("[A-Za-z0-9_]{1,64}");
 
     private final String url;
+    private final Path database;
+    private volatile AuthService trustedAuth;
 
     public SqliteSecurityAudit(Path database) {
         if (database == null) { throw new IllegalArgumentException("database is required"); }
-        url = "jdbc:sqlite:" + database.toAbsolutePath().normalize().toString();
+        this.database = database.toAbsolutePath().normalize();
+        url = "jdbc:sqlite:" + this.database.toString();
+    }
+
+    /** Binds log review to the application's own session provider and database. */
+    synchronized void bindTrustedAuth(AuthService auth) {
+        if (auth == null || !auth.usesDatabase(database)) { throw new IllegalArgumentException("authentication provider must use the audit database"); }
+        if (trustedAuth != null && trustedAuth != auth) { throw new IllegalStateException("trusted authentication provider is already bound"); }
+        trustedAuth = auth;
     }
 
     /** Additive and repeatable: an existing logs table and its rows are retained. */
@@ -73,14 +83,16 @@ public final class SqliteSecurityAudit implements SecurityAudit {
     }
 
     /**
-     * Returns a read-only filtered view after checking the current account's Role 5 privilege.
-     * A null access provider is denied and recorded as an unknown direct-review attempt.
+     * Returns a read-only filtered view after checking the bound application's current Role 5 session.
+     * The legacy access argument is ignored so it cannot substitute an identity from another provider.
      */
-    public List<Logs> search(AccessControl access, String text, String event) {
-        if (access == null) {
+    public List<Logs> search(AccessControl suppliedAccess, String text, String event) {
+        AuthService auth = trustedAuth;
+        if (auth == null) {
             recordDeniedWithoutAccess();
             return Collections.emptyList();
         }
+        AccessControl access = new AccessControl(auth);
         BundleBService.Actor actor = access.require(AccessControl.Feature.VIEW_LOGS);
         if (actor == null) { return Collections.emptyList(); }
 

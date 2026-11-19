@@ -29,7 +29,11 @@ final class AccountStore {
     private static final String COLUMNS = "id, username, password, role, locked, failed_attempts, last_attempt_at, last_attempt_status";
     private final String url;
 
-    AccountStore(Path database) { this.url = "jdbc:sqlite:" + database.toAbsolutePath().toString(); }
+    AccountStore(Path database) { this.url = "jdbc:sqlite:" + database.toAbsolutePath().normalize().toString(); }
+
+    boolean usesDatabase(Path database) {
+        return database != null && url.equals("jdbc:sqlite:" + database.toAbsolutePath().normalize().toString());
+    }
 
     Connection open() throws SQLException { return DriverManager.getConnection(url); }
 

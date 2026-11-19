@@ -39,6 +39,13 @@ public final class AuthService {
 
     AccountStore store() { return store; }
     SecurityAudit audit() { return audit; }
+    boolean usesDatabase(Path database) { return store.usesDatabase(database); }
+
+    /** Ends a privileged session and notifies the UI when a required security operation fails. */
+    void failSafeSession() {
+        Session current = session;
+        if (current != null) { revoke(current); }
+    }
 
     /** Called when the service ends a session on its own (disabled, deleted or role changed while signed in). */
     public void setSessionRevokedListener(Runnable listener) { sessionRevoked = listener == null ? new Runnable() { public void run() { } } : listener; }
@@ -111,7 +118,7 @@ public final class AuthService {
 
     public LoginResult login(String username, char[] password) {
         try {
-            if (!InputValidator.isValidUsername(username) || !InputValidator.isValidPasswordShape(password)) {
+            if (!InputValidator.isValidUsername(username)) {
                 audit.record("VALIDATION_FAILURE", "UNKNOWN", "login input rejected");
                 return LoginResult.failed();
             }
@@ -120,9 +127,21 @@ public final class AuthService {
                 try {
                     AccountStore.Account a = store.findByUsername(c, username);
                     if (a == null) {
-                        PasswordHasher.verifyAgainstDummy(password);
+                        if (InputValidator.isValidPasswordShape(password)) { PasswordHasher.verifyAgainstDummy(password); }
                         audit.record(c, "AUTH_FAILURE", username, "unknown account");
                         c.commit();
+                        return LoginResult.failed();
+                    }
+                    if (!InputValidator.isValidPasswordShape(password)) {
+                        boolean disabled = store.recordFailure(c, a.id, Instant.now().toString());
+                        audit.record(c, "VALIDATION_FAILURE", a.username, "login password input rejected");
+                        audit.record(c, "AUTH_FAILURE", a.username, "invalid credentials");
+                        if (disabled) { audit.record(c, "ACCOUNT_DISABLED", a.username, "role set to 1 after " + AccountStore.MAX_FAILED_ATTEMPTS + " consecutive failures"); }
+                        c.commit();
+                        if (disabled) {
+                            Session current = session;
+                            if (current != null && current.userId == a.id) { revoke(current); }
+                        }
                         return LoginResult.failed();
                     }
                     boolean matches = PasswordHasher.verify(password, a.passwordHash);

@@ -69,6 +69,7 @@ public final class UserAdminService {
                     return ok ? new Result(true, "Role updated.") : new Result(false, FAILED);
                 } catch (Exception ex) {
                     rollback(c);
+                    auth.failSafeSession();
                     return new Result(false, FAILED);
                 }
             }

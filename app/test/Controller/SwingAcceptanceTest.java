@@ -218,8 +218,13 @@ public final class SwingAcceptanceTest {
     private void roleNavigation(String username, String roleButton) {
         login(username, passwords.get(username));
         require(componentVisible(roleButton), username + " role navigation is visible");
+        String expectedHome = username + "HomePnl";
+        require(componentVisible(expectedHome), username + " is routed to the actual " + expectedHome + " panel");
         for (String other : new String[] {"adminHomeButton", "managerHomeButton", "staffHomeButton", "clientHomeButton"}) {
             if (!other.equals(roleButton)) { require(!componentVisible(other), username + " cannot see " + other); }
+        }
+        for (String otherHome : new String[] {"adminHomePnl", "managerHomePnl", "staffHomePnl", "clientHomePnl"}) {
+            if (!otherHome.equals(expectedHome)) { require(!componentVisible(otherHome), username + " is not routed to " + otherHome); }
         }
         gui.button("logoutButton").click();
     }

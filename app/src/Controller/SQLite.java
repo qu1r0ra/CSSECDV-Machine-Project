@@ -21,6 +21,8 @@ public class SQLite {
         securityAudit = new SqliteSecurityAudit(databasePath);
     }
 
+    void bindTrustedAuth(AuthService auth) { securityAudit.bindTrustedAuth(auth); }
+
     /** The audit provider applies the centralized Role 5 check and parameterized search filters. */
     public ArrayList<Logs> getLogs(AccessControl access, String text, String event) {
         return new ArrayList<Logs>(securityAudit.search(access, text, event));

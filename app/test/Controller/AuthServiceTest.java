@@ -38,6 +38,7 @@ public final class AuthServiceTest {
         registrationRollsBackWhenAuditPersistenceFails();
         userAdministrationRollsBackWhenAuditPersistenceFails();
         auditProviderPersistsFiltersAndRestrictsLogReview();
+        unexpectedDatabaseFailuresRevokeSessionsAndDenyControllers();
         failsClosedWhenStorageIsUnavailable();
         System.out.println("Bundle A behavior checks passed (" + checks + " assertions).");
     }
@@ -130,7 +131,18 @@ public final class AuthServiceTest {
                 f.auth.login("client1", new char[0]).getMessage(),
                 f.auth.login(null, null).getMessage() };
             for (String m : messages) { check("Invalid username and/or password".equals(m), "generic login failure message"); }
+            for (char[] malformed : new char[][] {new char[0], repeat('x', 65).toCharArray()}) {
+                int before = Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username = ?", "client1"));
+                check(AuthService.GENERIC_LOGIN_FAILURE.equals(f.auth.login("client1", malformed).getMessage()), "malformed known-account password retains generic feedback");
+                check(Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username = ?", "client1")) == before + 1, "malformed known-account password increments the consecutive login-failure counter");
+            }
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'VALIDATION_FAILURE' AND username = 'client1'") >= 2, "malformed known-account passwords are audited");
+            check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE ?", "%" + repeat('x', 65) + "%")), "oversized password is not persisted in audit details");
             check(f.auth.currentActor() == null, "no session after failures");
+            for (int i = 0; i < 4; i++) { f.auth.login("staff1", "Wrong!Pass1".toCharArray()); }
+            check("3".equals(f.role("staff1")), "malformed-input lockout case remains enabled after four valid-shaped failures");
+            check(AuthService.GENERIC_LOGIN_FAILURE.equals(f.auth.login("staff1", repeat('x', 65).toCharArray()).getMessage())
+                    && "1".equals(f.role("staff1")), "oversized password submission is the fifth consecutive failure and locks the known account");
         } finally { f.close(); }
     }
 
@@ -306,6 +318,11 @@ public final class AuthServiceTest {
             check(b.canManageProducts() && !b.canPurchase(), "staff may manage products but not purchase");
             check(b.addProduct("Widget", "5", "2.50", "Wrong!Pass1".toCharArray()).getStatus() == BundleBService.Status.REAUTH_REQUIRED, "B re-authentication rejects a wrong password");
             check(b.addProduct("Widget", "5", "2.50", GOOD.toCharArray()).isSuccess(), "B re-authentication accepts the real password");
+            execute(f.db, "CREATE TRIGGER reject_product_audit BEFORE INSERT ON logs WHEN NEW.event = 'PRODUCT_ADD' BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END");
+            check(!b.addProduct("AuditBlocked", "1", "1.00", GOOD.toCharArray()).isSuccess(), "actual SQLite audit insert failure rejects product mutation");
+            check(count(f.db, "SELECT COUNT(*) FROM product WHERE name = 'AuditBlocked'") == 0 && f.auth.currentActor() == null,
+                    "actual audit insert failure rolls back product change and revokes the session");
+            execute(f.db, "DROP TRIGGER reject_product_audit");
             f.auth.logout();
             f.auth.login("client1", GOOD.toCharArray());
             check(b.canPurchase() && !b.canManageProducts(), "client may purchase but not manage products");
@@ -314,6 +331,10 @@ public final class AuthServiceTest {
             check(b.confirmPurchase(b.quotePurchase(productId, "1").getValue()).isSuccess(), "client purchase succeeds");
             check(b.historyForCurrentActor("").getValue().size() == 1, "client sees own history");
             f.auth.logout();
+            f.auth.login("manager1", GOOD.toCharArray());
+            check(b.canViewHistory() && b.historyForCurrentActor("").getValue().size() == 1,
+                    "Manager session through the real gateway can view all-user purchase history");
+            f.auth.logout();
             f.auth.login("admin1", GOOD.toCharArray());
             check(b.listCatalog().getStatus() == BundleBService.Status.DENIED && !b.canViewHistory(), "admin has no product or history access");
             f.auth.logout();
@@ -321,7 +342,7 @@ public final class AuthServiceTest {
             f.auth.login("manager1", GOOD.toCharArray());
             check(b.listCatalog().getStatus() == BundleBService.Status.DENIED, "disabled manager has no access");
             new AppSecurityGateway(f.auth, new Runnable() { public void run() { fallbacks[0]++; } }).onUnrecoverableFailure();
-            check(fallbacks[0] == 1 && f.auth.currentActor() == null, "unrecoverable failure ends the session and returns to the safe state");
+            check(fallbacks[0] >= 2 && f.auth.currentActor() == null, "unrecoverable failure ends the session and returns to the safe state");
         } finally { f.close(); }
     }
 
@@ -337,6 +358,20 @@ public final class AuthServiceTest {
             try { auth.initialize(); } catch (IllegalStateException expected) { threw = !expected.getMessage().contains("sqlite"); }
             check(threw, "initialize reports a generic failure");
         } finally { Files.deleteIfExists(dir); }
+    }
+
+    private static void unexpectedDatabaseFailuresRevokeSessionsAndDenyControllers() throws Exception {
+        Fixture f = new Fixture();
+        try {
+            check(f.auth.login("admin1", GOOD.toCharArray()).isSuccess(), "Admin session established before unexpected database failure");
+            final int[] safeFallbacks = {0};
+            f.auth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
+            execute(f.db, "DROP TABLE users");
+            check(f.auth.currentActor() == null && safeFallbacks[0] == 1,
+                    "unexpected account-storage query failure revokes the active session and routes through the safe-state listener");
+            check(f.admin.listUsers().isEmpty() && !f.admin.changeRole(2, "3", GOOD.toCharArray()).isSuccess(),
+                    "user administration returns safe empty or denied outcomes after storage failure");
+        } finally { f.close(); }
     }
 
     private static void authenticationRollsBackWhenAuditPersistenceFails() throws Exception {
@@ -384,6 +419,7 @@ public final class AuthServiceTest {
             SqliteSecurityAudit audit = new SqliteSecurityAudit(f.db);
             audit.initialize();
             AuthService admin = new AuthService(f.db, audit);
+            audit.bindTrustedAuth(admin);
             admin.initialize();
             admin.login("bad name", GOOD.toCharArray());
             check(!admin.login("admin1", "Wrong!Pass1".toCharArray()).isSuccess(), "invalid sign-in is denied");
@@ -396,6 +432,19 @@ public final class AuthServiceTest {
             check(matching.size() == 1 && "admin1".equals(matching.get(0).getUsername()),
                     "Admin search filters persisted audit events by text and event type");
             check(matching.get(0).getTimestamp() != null, "persisted ISO audit timestamps are readable");
+
+            Fixture foreign = new Fixture();
+            try {
+                check(foreign.auth.login("admin1", GOOD.toCharArray()).isSuccess(), "separate database Admin signs in");
+                admin.logout();
+                check(audit.search(new AccessControl(foreign.auth), "", null).isEmpty(),
+                        "Admin session from another database cannot read target audit records");
+                check(admin.login("admin1", GOOD.toCharArray()).isSuccess()
+                        && audit.search(new AccessControl(foreign.auth), "", null).size() == count(f.db, "SELECT COUNT(*) FROM logs"),
+                        "target database Admin session, not the supplied provider, authorizes review");
+                try { audit.bindTrustedAuth(foreign.auth); throw new AssertionError("cross-database trusted provider binding rejected"); }
+                catch (IllegalArgumentException expected) { check(true, "audit provider refuses an auth provider for another database"); }
+            } finally { foreign.close(); }
 
             final SqliteSecurityAudit uiAudit = audit;
             SQLite uiStore = new SQLite() {
@@ -438,12 +487,11 @@ public final class AuthServiceTest {
             check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE ?", "%" + GOOD + "%")),
                     "audit records do not contain submitted credentials");
 
-            AuthService client = new AuthService(f.db, audit);
-            client.initialize();
-            check(client.login("client1", GOOD.toCharArray()).isSuccess(), "client can sign in for denied-review test");
-            check(audit.search(new AccessControl(client), "", null).isEmpty(),
+            admin.logout();
+            check(admin.login("client1", GOOD.toCharArray()).isSuccess(), "client can sign in for denied-review test");
+            check(audit.search(new AccessControl(admin), "", null).isEmpty(),
                     "non-admin direct log review returns no records");
-            MgmtLogs clientLogPanel = new MgmtLogs(uiStore, new AccessControl(client));
+            MgmtLogs clientLogPanel = new MgmtLogs(uiStore, new AccessControl(admin));
             clientLogPanel.searchLogs("invalid password");
             check(clientLogPanel.tableModel.getRowCount() == 0,
                     "non-admin log panel remains empty after direct UI-boundary search");
@@ -498,12 +546,16 @@ public final class AuthServiceTest {
             auth.initialize();
             check(auth.login("admin1", GOOD.toCharArray()).isSuccess(), "admin can sign in while the audit provider is available for authentication");
             UserAdminService admin = new UserAdminService(auth, new AccessControl(auth));
+            final int[] safeFallbacks = {0};
+            auth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
 
             UserAdminService.Result result = admin.changeRole(f.id("client2"), "3", GOOD.toCharArray());
             check(!result.isSuccess(), "account change reports failure when its required audit write fails");
             check("2".equals(f.role("client2")), "role change rolls back when its audit record cannot persist");
             check("0".equals(scalar(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'USER_ADMIN'")),
                     "failed account change does not leave a success audit record");
+            check(auth.currentActor() == null && safeFallbacks[0] == 1,
+                    "failed required role-change audit revokes the privileged session and invokes safe-state fallback");
         } finally { f.close(); }
     }
 
@@ -513,7 +565,10 @@ public final class AuthServiceTest {
         final Path db; final AuthService auth; final AccessControl access; final UserAdminService admin;
         Fixture() throws Exception {
             db = tempDb();
-            auth = new AuthService(db, SecurityAudit.NONE);
+            SqliteSecurityAudit audit = new SqliteSecurityAudit(db);
+            audit.initialize();
+            auth = new AuthService(db, audit);
+            audit.bindTrustedAuth(auth);
             auth.initialize();
             access = new AccessControl(auth);
             admin = new UserAdminService(auth, access);
