@@ -27,6 +27,31 @@ Shared-layer fix (2026-11-02, PR #12, squash-merged from head `6694e27` to `main
 
 This section supersedes the pre-integration status snapshot above. Issue [#9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9) is integrated in the assigned #15 branch; this is the #17 evidence and delivery batch. Candidate code commit: ba2ad17f6825e3fb63ac457c2aae78aa30eded3e, based on integrated commit ff7f61e27c4fe6686f8a7992a8edef6bd9626b95. This exact commit passed the integrated A/B/UI regression target before the evidence was recorded. No PR or merge to main was created.
 
+### Integrated candidate review repairs (2026-11-19)
+
+The #15 candidate review findings were independently checked against the issue #15/#16/#9/#17 acceptance criteria, `docs/specifications.md`, and `docs/checklist.md`. The defects were present at review base `7ba394803f9f3ceac2d0884a33ec92dc9bab638e`. Source, tests, Ant smoke-test isolation, and the rebuilt package were committed as code revision `df2b8c9bcf9160fda72972f800368057af321d05`. The exact code revision passed the commands below on JDK 21.0.13 and Ant 1.10.18:
+
+| Purpose | Exact command | Result |
+| --- | --- | --- |
+| Integrated A/B and Swing regression | `ant '-Dbuild.dir=build-candidate-review-15' '-Ddist.dir=dist-candidate-review-15' -f build.xml test-regression-final-17` | BUILD SUCCESSFUL; A passed 279 assertions, B provider checks passed, and AssertJ Swing passed on the real display. The UI suite now checks visible role home panels as well as navigation buttons. |
+| Standalone package smoke against the checked-in distribution | `ant '-Dbuild.dir=build-candidate-review-15' '-Ddist.dir=dist-candidate-review-15' '-Ddistribution.dir=submission/distribution' '-Ddemo.credentials=C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt' -f build.xml test-distribution` | BUILD SUCCESSFUL; the packaged JAR ran the Swing workflows against `build-candidate-review-15/distribution-smoke/database.db`. Ant compared the checked-in distribution DB SHA-256 before and after and passed the preservation check. |
+| Rebuild checked-in standalone package | `ant '-Dbuild.dir=build-candidate-review-15' '-Ddist.dir=submission/distribution' '-Ddistribution.database=submission/distribution/database.db' -f build.xml jar` | BUILD SUCCESSFUL; rebuilt `app/submission/distribution/CSSECDV.jar` from the reviewed source. |
+| Patch whitespace check | `git diff --check` | Passed before the code commit. |
+
+The review repairs bind audit-log searches to the single trusted application `AuthService` whose database path matches the audit provider; the caller-supplied `AccessControl` can no longer substitute a Role 5 session from another database. Tests cover a signed-in Admin from a separate database, denial when the target app has no Admin session, and successful target Admin review. Known-user empty and oversized password submissions keep generic feedback, record validation and authentication failure events without the secret, advance the consecutive-failure state, and disable the account on the fifth failure. A failed required role-change audit now rolls back the role update, revokes the Admin session, and invokes the configured safe-state listener. The B provider distinguishes required audit-write exceptions from SQLite constraint conflicts; a trigger-injected failure in the real logs table verifies mutation rollback and safe fallback. Real-provider gateway coverage confirms Manager all-user history. Swing checks each role's actual visible home panel.
+
+Additional 2.4.3 evidence now exercises an unexpected account-table failure after login, verifies session revocation and safe-state notification, and checks that account administration returns denial/empty outcomes. Existing A/B failure tests cover provider errors, required-audit rollback, and business safe fallback. This narrows the evidence gap but does not prove a universal crash boundary around every controller and database method; checklist 2.4.3 remains unchecked.
+
+The checked-in distribution currently contains exactly the executable JAR, `database.db`, and SQLite JDBC runtime. SHA-256 after rebuild:
+
+| Runtime artifact | SHA-256 |
+| --- | --- |
+| CSSECDV.jar | b73624e9c4312b4a769b29e7aec071ad1c239aeec9dccfd491be4cfe37b80d15 |
+| database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
+| lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
+
+The documentation/evidence update follows code revision `df2b8c9`; it does not change implementation code or packaged runtime artifacts. No PR or merge was created. The completion checkout was not touched.
+
 The final A, B, and Swing UI regression command passed on Windows with JDK 21.0.13 and Ant 1.10.18. The Swing target ran non-headless on the real desktop display; AssertJ Swing's AWT Robot drove the actual Swing controls. Its UI database is temporary and isolated. The target writes to unique build-final-17 / dist-final-17 directories so it does not collide with the orphan Java process or default NetBeans build output.
 
 ### Commands and results
@@ -50,7 +75,7 @@ app/submission/distribution/ is the standalone deliverable. It contains exactly 
 
 | Runtime artifact | SHA-256 |
 | --- | --- |
-| CSSECDV.jar | 54c29721d860f9c44a18c71005282923cd27fbdef4ff425cbe8b972fb24a38d1 |
+| CSSECDV.jar | b73624e9c4312b4a769b29e7aec071ad1c239aeec9dccfd491be4cfe37b80d15 |
 | database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
 | lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
 
@@ -72,22 +97,22 @@ Only criteria with recorded implementation and behavior evidence are checked. 28
 | [x] | 2.1.5 | A provider tests cover required character classes and rejection of weak passwords. |
 | [x] | 2.1.6 | A provider tests cover the 8–64 character boundary. |
 | [x] | 2.1.7 | Swing verifies masked login, registration, and confirmation password fields. |
-| [x] | 2.1.8 | A provider and Swing tests verify the account stays enabled through four failures and becomes Role 1 on the fifth; success resets the sequence. |
+| [x] | 2.1.8 | A provider and Swing tests verify the account stays enabled through four failures and becomes Role 1 on the fifth; an oversized known-user password is also verified as the fifth failure. Success resets the sequence. |
 | [x] | 2.1.9 | A provider and Swing tests verify the prior attempt timestamp and status are reported after successful login. |
 | [x] | 2.1.10 | A/B providers test current-password reauthentication and operation binding; Swing tests the purchase confirmation step. |
 | [x] | 2.2.1 | Central AccessControl checks role homes, user administration, and audit review; business providers enforce operation-level authorization. |
 | [x] | 2.2.2 | Provider role matrices and Swing route/control visibility checks cover Client, Staff, Manager, and Admin behavior. |
 | [x] | 2.2.3 | Provider/storage failures and unauthorized direct calls return denial or safe failure without granting privileges. |
-| [x] | 2.2.4 | Swing verifies each enabled role's home; disabled/stale actor is returned to Login. |
+| [x] | 2.2.4 | Swing verifies each enabled role's actual visible home panel and hides the other role panels; disabled/stale actor is returned to Login. |
 | [x] | 2.3.1 | A/B validation tests reject malformed and over-limit inputs without sanitizing or partially mutating state. |
 | [x] | 2.3.2 | A/B tests cover role, quantity, stock, and exact price range/boundary handling. |
 | [x] | 2.3.3 | A/B tests cover account, catalog, quantity, and search length boundaries. |
 | [x] | 2.3.4 | Runtime data queries use parameterized providers; the former unsafe compatibility CRUD surface is retired, and audit filters are parameterized. |
 | [x] | 2.4.1 | Production sources no longer print stack traces or provider details to end users; failure paths return safe outcomes. |
 | [x] | 2.4.2 | UI receives fixed, user-friendly service messages; provider details are not shown. |
-| [ ] | 2.4.3 | Open: high-risk controller/provider error paths and rollback are tested, but this evidence does not prove that every controller and database method is wrapped against every unexpected event. |
+| [ ] | 2.4.3 | Open: A tests inject an unexpected account-table query failure after login and verify session revocation, safe-state notification, and denial/empty account-administration outcomes. A/B tests cover provider and audit failures with rollback. These checks do not prove that every controller and database method is wrapped against every unexpected event. |
 | [x] | 2.4.4 | B provider failure paths invoke the safe fallback; Swing verifies a revoked/disabled session reaches the Login panel. |
-| [x] | 2.5.1 | Role checks restrict account/audit administration; Admin can search and show all logs; the application exposes no permanent audit-delete operation. |
+| [x] | 2.5.1 | Role checks restrict account administration; audit search uses the trusted app session bound to the same database and denies a foreign database Admin; the UI allows Admin search/show-all and exposes no permanent audit-delete operation. |
 | [x] | 2.5.2 | A/B provider tests verify timestamped validation events and persistence. |
 | [x] | 2.5.3 | A provider tests verify timestamped successful and failed authentication events. |
 | [x] | 2.5.4 | A/B provider tests verify unauthorized resource attempts are denied and recorded. |
