@@ -83,9 +83,22 @@ The tracked distribution SHA-256 after rebuild and standalone smoke is `CSSECDV.
 
 The earlier documentation/evidence update followed code revision `df2b8c9`; the independent re-review evidence above is bound to source revision `e87494e39aa004101f1d313975f1c611bc557bec`. No PR or merge was created. The completion checkout was not touched.
 
-The final A, B, and Swing UI regression command passed on Windows with JDK 21.0.13 and Ant 1.10.18. The Swing target ran non-headless on the real desktop display; AssertJ Swing's AWT Robot drove the actual Swing controls. Its UI database is temporary and isolated. The target writes to unique build-final-17 / dist-final-17 directories so it does not collide with the orphan Java process or default NetBeans build output.
+### Final reauthentication repair and package verification (2026-11-19)
 
-### Commands and results
+Code revision `3cc248287f1df93c582cd84293c48140957dd3f9` binds malformed reauthentication to the trusted active session before audit attribution. For a valid actor, malformed reauthentication records `VALIDATION_FAILURE` and `AUTH_FAILURE` and increments the separate reauthentication-failure counter in one transaction; it does not increment the five-failed-login counter. Tests cover forged and stale actors, the transactional counter/audit result, and rollback with session revocation after an audit failure. The temporary-lock test exercises the actual Admin unlock service before checking the user's next successful login. A read-only spec review using gpt-6.1-terra at medium effort found no actionable gap in this diff. Checklist 2.4.3 remains open because these cases still do not establish a boundary around every controller and database method.
+
+| Purpose | Exact command | Result |
+| --- | --- | --- |
+| Integrated A/B and Swing regression | `ant '-Dbuild.dir=build-final-round' '-Ddist.dir=dist-final-round' -f build.xml test-regression-final-17` | BUILD SUCCESSFUL at code revision `3cc248287f1df93c582cd84293c48140957dd3f9`; A passed 347 assertions, B provider checks passed, and the real-display Swing suite passed. |
+| Rebuild executable JAR | `ant '-Dbuild.dir=build-package' '-Ddist.dir=dist-package' -f build.xml jar` | BUILD SUCCESSFUL; rebuilt from `3cc2482` and copied the JAR into the tracked standalone distribution without replacing the prepared demo database. |
+| Standalone package Swing smoke | `ant '-Dbuild.dir=build-package' '-Ddist.dir=dist-package' '-Ddistribution.dir=submission/distribution' '-Ddemo.credentials=C:\Users\Quirora\AppData\Local\CSSECDV-Machine-Project\demo-credentials-issue-17.txt' -f build.xml test-distribution` | BUILD SUCCESSFUL; packaged UI workflows used an isolated database copy, and the tracked demo database remained unchanged. |
+| Patch whitespace check | `git diff --check` | Passed after the code changes. |
+
+The final tracked distribution SHA-256 is `CSSECDV.jar` `d466e5f70214a672f05764783d9754cbacbdd109d0b8a2cb9daf4bbb140ac33a`, `database.db` `4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7`, and `lib/sqlite-jdbc-3.23.1.jar` `d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331`. The distribution target passed its before/after SHA-256 preservation check; an independent post-run hash matched the recorded database hash.
+
+The first issue #17 acceptance batch passed on Windows with JDK 21.0.13 and Ant 1.10.18. The Swing target ran non-headless on the real desktop display; AssertJ Swing's AWT Robot drove the actual Swing controls. Its UI database was temporary and isolated. The final reauthentication repair and regression rerun are recorded above; the earlier assertion count below is historical.
+
+### Earlier commands and results (initial #17 acceptance batch)
 
 Run from the repository app directory unless noted.
 
@@ -106,7 +119,7 @@ app/submission/distribution/ is the standalone deliverable. It contains exactly 
 
 | Runtime artifact | SHA-256 |
 | --- | --- |
-| CSSECDV.jar | a2a2e0048a33a81386cc800dd4d82166bf99322375c30f8931f583507e7672f4 |
+| CSSECDV.jar | d466e5f70214a672f05764783d9754cbacbdd109d0b8a2cb9daf4bbb140ac33a |
 | database.db | 4105797b0c4cd289b3a4b9b5645d8618a4540b79822c431a3aa4f41537db9af7 |
 | lib/sqlite-jdbc-3.23.1.jar | d570af636a2be99e20be9510fb615aa819b2059857b2dd625aecbff774766331 |
 
@@ -145,7 +158,7 @@ Only criteria with recorded implementation and behavior evidence are checked. 28
 | [x] | 2.4.4 | B provider failure paths invoke the safe fallback; Swing verifies a revoked/disabled session reaches the Login panel. |
 | [x] | 2.5.1 | Role checks restrict account administration; audit search uses the trusted app session bound to the same database and denies a foreign database Admin; the UI allows Admin search/show-all and exposes no permanent audit-delete operation. |
 | [x] | 2.5.2 | A/B provider tests verify timestamped validation events and persistence. |
-| [x] | 2.5.3 | A provider tests verify timestamped successful and failed authentication events. |
+| [x] | 2.5.3 | A provider tests verify timestamped successful and failed login and reauthentication events, including malformed reauthentication without logging submitted passwords. |
 | [x] | 2.5.4 | A/B provider tests verify unauthorized resource attempts are denied and recorded. |
 
 ### Required functionality and delivery status
@@ -157,11 +170,11 @@ Only criteria with recorded implementation and behavior evidence are checked. 28
 - [x] A/B actual-provider regression and real-display Swing suite pass.
 - [x] Copy-based standalone distribution UI suite and direct JAR launch pass; delivery DB remains unchanged.
 - [x] git diff --check passes.
-- [x] NetBeans 32 smoke launch (2026-11-19): Apache NetBeans 32 was installed and opened on a disposable candidate source snapshot at `2bdef76`; the application window launched and responded. This confirms a basic IDE open/build/run path, not complete security acceptance. Repeat on the final source revision before submission.
+- [x] NetBeans 32 smoke launch (2026-11-19): Apache NetBeans 32 was installed and opened on a disposable candidate source snapshot at `2bdef76`; the application window launched and responded. This confirms a basic IDE open/build/run path, not complete security acceptance. The final source revision separately passed the integrated and packaged UI tests recorded above.
 
 ### Reconciliation and remaining gap
 
-The tested artifacts satisfy the issue #17 delivery scope against the assignment materials, rubric/checklist, #15, and settled Bundle B. The settled #15/#16 constraints are preserved: there is no permanent audit-delete action, required audit-write failures fail closed, the test and distribution-smoke databases are isolated, and recorded evidence reflects executed commands. No test passwords or demo plaintext credentials are tracked. The remaining checklist gap is 2.4.3's broad all-method crash-boundary claim; keep it unchecked unless further whole-application failure coverage supports it. The NetBeans smoke launch was on the `2bdef76` disposable snapshot and must be repeated against the final source revision.
+The tested artifacts satisfy the issue #17 delivery scope against the assignment materials, rubric/checklist, #15, and settled Bundle B. The settled #15/#16 constraints are preserved: there is no permanent audit-delete action, required audit-write failures fail closed, the test and distribution-smoke databases are isolated, and recorded evidence reflects executed commands. No test passwords or demo plaintext credentials are tracked. The remaining checklist gap is 2.4.3's broad all-method crash-boundary claim; keep it unchecked unless further whole-application failure coverage supports it. NetBeans smoke testing established the IDE open/build/run path on a disposable earlier source snapshot; the final code's behavior was verified through the recorded Ant and packaged UI suites.
 
 ## Scheduling and later decisions
 
