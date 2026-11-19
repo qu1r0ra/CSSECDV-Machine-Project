@@ -168,7 +168,12 @@ public final class UserAdminService {
     }
 
     private void validationFailure(BundleBService.Actor admin, String what) {
-        auth.audit().record("VALIDATION_FAILURE", admin.getUsername(), what + " input rejected");
+        try {
+            auth.audit().record("VALIDATION_FAILURE", admin.getUsername(), what + " input rejected");
+        } catch (RuntimeException ex) {
+            auth.failSafeSession();
+            throw new IllegalStateException(FAILED);
+        }
     }
 
     private void audit(Connection connection, BundleBService.Actor admin, String detail) {

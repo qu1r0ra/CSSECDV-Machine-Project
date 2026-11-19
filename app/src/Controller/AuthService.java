@@ -28,6 +28,10 @@ public final class AuthService {
     private final AccountStore store;
     private final SecurityAudit audit;
     private final AtomicLong generations = new AtomicLong();
+    interface DummyPasswordVerifier { void verify(char[] password); }
+    private DummyPasswordVerifier dummyPasswordVerifier = new DummyPasswordVerifier() {
+        public void verify(char[] password) { PasswordHasher.verifyAgainstDummy(password); }
+    };
     private volatile Session session;
     private volatile Runnable sessionRevoked = new Runnable() { public void run() { } };
 
@@ -40,6 +44,12 @@ public final class AuthService {
     AccountStore store() { return store; }
     SecurityAudit audit() { return audit; }
     boolean usesDatabase(Path database) { return store.usesDatabase(database); }
+
+    /** Allows deterministic verification that all non-active account paths spend dummy-hash work. */
+    void setDummyPasswordVerifierForTest(DummyPasswordVerifier verifier) {
+        if (verifier == null) { throw new IllegalArgumentException("verifier is required"); }
+        dummyPasswordVerifier = verifier;
+    }
 
     /** Ends a privileged session and notifies the UI when a required security operation fails. */
     void failSafeSession() {
@@ -119,7 +129,17 @@ public final class AuthService {
     public LoginResult login(String username, char[] password) {
         try {
             if (!InputValidator.isValidUsername(username)) {
-                audit.record("VALIDATION_FAILURE", "UNKNOWN", "login input rejected");
+                try (Connection c = store.open()) {
+                    c.setAutoCommit(false);
+                    try {
+                        audit.record(c, "VALIDATION_FAILURE", "UNKNOWN", "login input rejected");
+                        audit.record(c, "AUTH_FAILURE", "UNKNOWN", "invalid login input");
+                        c.commit();
+                    } catch (Exception ex) {
+                        rollbackQuietly(c);
+                        throw ex;
+                    }
+                }
                 return LoginResult.failed();
             }
             try (Connection c = store.open()) {
@@ -128,14 +148,16 @@ public final class AuthService {
                     AccountStore.Account a = store.findByUsername(c, username);
                     boolean validShape = InputValidator.isValidPasswordShape(password);
                     if (a == null) {
-                        if (validShape) { PasswordHasher.verifyAgainstDummy(password); }
+                        if (validShape) { dummyPasswordVerifier.verify(password); }
                         else { audit.record(c, "VALIDATION_FAILURE", "UNKNOWN", "login password input rejected"); }
                         audit.record(c, "AUTH_FAILURE", username, "unknown account");
                         c.commit();
                         return LoginResult.failed();
                     }
                     if (!a.isActive()) {
+                        if (validShape) { dummyPasswordVerifier.verify(password); }
                         if (!validShape) { audit.record(c, "VALIDATION_FAILURE", a.username, "login password input rejected"); }
+                        store.recordBlockedFailure(c, a.id, Instant.now().toString());
                         audit.record(c, "AUTH_FAILURE", a.username, "account disabled or locked");
                         c.commit();
                         return LoginResult.failed();
@@ -176,7 +198,7 @@ public final class AuthService {
                 }
             }
         } catch (Exception ex) {
-            session = null;
+            failSafeSession();
             return LoginResult.error();
         } finally {
             clear(password);

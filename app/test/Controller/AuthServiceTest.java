@@ -25,6 +25,7 @@ public final class AuthServiceTest {
         registrationEnforcesPolicyAndAssignsClientRole();
         duplicateAndCaseVariantUsernamesGiveTheGenericFailure();
         loginFailuresAreIndistinguishable();
+        nonActiveAccountsSpendDummyPasswordWork();
         malformedAndLockedLoginAttemptsAreHandledConsistently();
         lockoutHappensOnTheFifthConsecutiveFailureOnly();
         disabledAccountCannotLoginEvenWithCorrectPassword();
@@ -38,6 +39,7 @@ public final class AuthServiceTest {
         authenticationRollsBackWhenAuditPersistenceFails();
         registrationRollsBackWhenAuditPersistenceFails();
         userAdministrationRollsBackWhenAuditPersistenceFails();
+        userAdministrationValidationAuditFailureRevokesSession();
         reauthenticationAuditFailureRevokesSession();
         auditProviderPersistsFiltersAndRestrictsLogReview();
         unexpectedDatabaseFailuresRevokeSessionsAndDenyControllers();
@@ -133,6 +135,9 @@ public final class AuthServiceTest {
                 f.auth.login("client1", new char[0]).getMessage(),
                 f.auth.login(null, null).getMessage() };
             for (String m : messages) { check("Invalid username and/or password".equals(m), "generic login failure message"); }
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='UNKNOWN'") >= 1
+                    && count(f.db, "SELECT COUNT(*) FROM logs WHERE event='AUTH_FAILURE' AND username='UNKNOWN'") >= 1,
+                    "malformed username records both validation and authentication failures");
             for (char[] malformed : new char[][] {new char[0], repeat('x', 65).toCharArray()}) {
                 int before = Integer.parseInt(scalar(f.db, "SELECT failed_attempts FROM users WHERE username = ?", "client1"));
                 check(AuthService.GENERIC_LOGIN_FAILURE.equals(f.auth.login("client1", malformed).getMessage()), "malformed known-account password retains generic feedback");
@@ -148,6 +153,29 @@ public final class AuthServiceTest {
         } finally { f.close(); }
     }
 
+    private static void nonActiveAccountsSpendDummyPasswordWork() throws Exception {
+        Fixture f = new Fixture();
+        try {
+            f.seed("disabledtiming", 1, GOOD);
+            f.seed("lockedtiming", 3, GOOD);
+            execute(f.db, "UPDATE users SET locked=1 WHERE username=?", "lockedtiming");
+            final int[] invocations = {0};
+            f.auth.setDummyPasswordVerifierForTest(new AuthService.DummyPasswordVerifier() {
+                public void verify(char[] password) {
+                    invocations[0]++;
+                    PasswordHasher.verifyAgainstDummy(password);
+                }
+            });
+            f.auth.login("missingtiming", GOOD.toCharArray());
+            f.auth.login("disabledtiming", GOOD.toCharArray());
+            f.auth.login("lockedtiming", GOOD.toCharArray());
+            check(invocations[0] == 3,
+                    "unknown, role-disabled, and temporarily locked valid-shaped attempts all invoke dummy PBKDF2 verification (observed " + invocations[0] + ")");
+            f.auth.login("client1", "Wrong!Pass1".toCharArray());
+            check(invocations[0] == 3, "active accounts continue to verify against their stored hash");
+        } finally { f.close(); }
+    }
+
     private static void malformedAndLockedLoginAttemptsAreHandledConsistently() throws Exception {
         Fixture f = new Fixture();
         try {
@@ -160,13 +188,21 @@ public final class AuthServiceTest {
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE \"desc\" LIKE '%No Secret%'") == 0,
                     "malformed unknown-user audit records do not contain the submitted secret");
 
-            f.seed("temp-lock", 3, GOOD);
-            execute(f.db, "UPDATE users SET locked=1, failed_attempts=3 WHERE username=?", "temp-lock");
-            f.auth.login("temp-lock", new char[0]);
-            f.auth.login("temp-lock", "Wrong!Pass1".toCharArray());
-            check("3".equals(scalar(f.db, "SELECT role FROM users WHERE username=?", "temp-lock"))
-                    && "3".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username=?", "temp-lock")),
+            f.seed("templock", 3, GOOD);
+            execute(f.db, "UPDATE users SET locked=1, failed_attempts=3 WHERE username=?", "templock");
+            f.auth.login("templock", new char[0]);
+            f.auth.login("templock", "Wrong!Pass1".toCharArray());
+            check("3".equals(scalar(f.db, "SELECT role FROM users WHERE username=?", "templock"))
+                    && "3".equals(scalar(f.db, "SELECT failed_attempts FROM users WHERE username=?", "templock")),
                     "malformed and valid-shaped attempts against a temporary lock preserve its state");
+            check("FAILED".equals(scalar(f.db, "SELECT last_attempt_status FROM users WHERE username=?", "templock"))
+                    && scalar(f.db, "SELECT last_attempt_at FROM users WHERE username=?", "templock") != null,
+                    "attempt against a temporary lock updates the previous-attempt status and timestamp");
+            execute(f.db, "UPDATE users SET locked=0 WHERE username=?", "templock");
+            AuthService.LoginResult afterUnlock = f.auth.login("templock", GOOD.toCharArray());
+            check(afterUnlock.isSuccess() && afterUnlock.describePreviousAttempt().contains("FAILED")
+                    && afterUnlock.describePreviousAttempt().contains("Failed attempts since your last successful login: 3"),
+                    "successful login after unlock reports the blocked attempt and preserved failed-attempt count");
 
             f.auth.login("client1", new char[0]);
             AuthService.LoginResult next = f.auth.login("client1", GOOD.toCharArray());
@@ -441,6 +477,33 @@ public final class AuthServiceTest {
                     "sign-in succeeds after audit storage recovers");
             check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event = 'AUTH_SUCCESS'") == 1,
                     "the recovered sign-in is persisted exactly once");
+
+            final boolean[] failAuthenticationAudit = {false};
+            final SqliteSecurityAudit persistent = new SqliteSecurityAudit(f.db);
+            SecurityAudit intermittentlyUnavailable = new SecurityAudit() {
+                public void record(String event, String username, String detail) {
+                    if (failAuthenticationAudit[0] && "AUTH_FAILURE".equals(event)) { throw new IllegalStateException("audit unavailable"); }
+                    persistent.record(event, username, detail);
+                }
+                public void record(Connection connection, String event, String username, String detail) {
+                    if (failAuthenticationAudit[0] && "AUTH_FAILURE".equals(event)) { throw new IllegalStateException("audit unavailable"); }
+                    persistent.record(connection, event, username, detail);
+                }
+            };
+            AuthService sessionAuth = new AuthService(f.db, intermittentlyUnavailable);
+            persistent.bindTrustedAuth(sessionAuth);
+            sessionAuth.initialize();
+            check(sessionAuth.login("admin1", GOOD.toCharArray()).isSuccess(), "Admin signs in before malformed-input audit outage");
+            final int[] safeFallbacks = {0};
+            sessionAuth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
+            int validationRowsBefore = count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='UNKNOWN'");
+            failAuthenticationAudit[0] = true;
+            AuthService.LoginResult malformed = sessionAuth.login("bad name", GOOD.toCharArray());
+            check(malformed.getStatus() == AuthService.LoginResult.Status.ERROR
+                    && sessionAuth.currentActor() == null && safeFallbacks[0] == 1,
+                    "failed second audit for malformed username rolls back and revokes the existing session to safe state");
+            check(count(f.db, "SELECT COUNT(*) FROM logs WHERE event='VALIDATION_FAILURE' AND username='UNKNOWN'") == validationRowsBefore,
+                    "malformed username validation event rolls back if its paired authentication event cannot persist");
         } finally { f.close(); }
     }
 
@@ -605,6 +668,32 @@ public final class AuthServiceTest {
                 if ("password".equals(operation)) { check(!PasswordHasher.verify("Other!Pass2".toCharArray(), scalar(f.db, "SELECT password FROM users WHERE username='client2'")), "failed password change rolls back"); }
                 check(f.auth.currentActor() == null && safeFallbacks[0] == 1,
                         operation + " audit failure revokes Admin session and invokes safe-state fallback");
+            } finally { f.close(); }
+        }
+    }
+
+    private static void userAdministrationValidationAuditFailureRevokesSession() throws Exception {
+        for (final String operation : new String[] {"role", "lock", "delete", "password-policy", "password-confirmation"}) {
+            Fixture f = new Fixture();
+            try {
+                check(f.auth.login("admin1", GOOD.toCharArray()).isSuccess(), "Admin signs in before " + operation + " validation-audit failure");
+                final int[] safeFallbacks = {0};
+                f.auth.setSessionRevokedListener(new Runnable() { public void run() { safeFallbacks[0]++; } });
+                execute(f.db, "DROP TABLE logs");
+                int clientId = f.id("client2");
+                UserAdminService.Result result;
+                if ("role".equals(operation)) { result = f.admin.changeRole(clientId, "invalid", GOOD.toCharArray()); }
+                else if ("lock".equals(operation)) { result = f.admin.setLocked(-1, true); }
+                else if ("delete".equals(operation)) { result = f.admin.deleteUser(-1, GOOD.toCharArray()); }
+                else if ("password-policy".equals(operation)) {
+                    result = f.admin.changePassword(clientId, "weak".toCharArray(), "weak".toCharArray(), GOOD.toCharArray());
+                } else {
+                    result = f.admin.changePassword(clientId, GOOD.toCharArray(), "Other!Pass1".toCharArray(), GOOD.toCharArray());
+                }
+                check(!result.isSuccess() && "The action could not be completed.".equals(result.getMessage()),
+                        operation + " returns a generic failure when standalone validation audit persistence fails");
+                check(f.auth.currentActor() == null && safeFallbacks[0] == 1,
+                        operation + " standalone validation audit failure revokes Admin session and invokes safe fallback");
             } finally { f.close(); }
         }
     }

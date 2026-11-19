@@ -149,6 +149,16 @@ final class AccountStore {
         }
     }
 
+    /** Updates the previous-attempt context for blocked accounts without changing lockout state. */
+    void recordBlockedFailure(Connection c, int id, String now) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement(
+                "UPDATE users SET last_attempt_at = ?, last_attempt_status = 'FAILED' WHERE id = ?")) {
+            s.setString(1, now);
+            s.setInt(2, id);
+            s.executeUpdate();
+        }
+    }
+
     /** Re-authentication is audited separately and never contributes to the login lockout threshold. */
     void recordReauthenticationFailure(Connection c, int id) throws SQLException {
         try (PreparedStatement s = c.prepareStatement(
