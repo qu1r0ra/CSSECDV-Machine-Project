@@ -4,9 +4,10 @@ Secure Web Development machine project for De La Salle University. The course pr
 
 ## Project documents
 
-- [Security documentation](docs/security-documentation.md)
-- [Access-control matrix](docs/access-control-matrix.md)
-- [Demo test cases](docs/demo-test-cases.md)
+- Editable Markdown sources: [security documentation](docs/security-documentation.md), [access-control matrix](docs/access-control-matrix.md), and [demo test cases](docs/demo-test-cases.md).
+- Printable PDFs: [security documentation](output/pdf/security-documentation.pdf), [access-control matrix](output/pdf/access-control-matrix.pdf), and [demo test cases](output/pdf/demo-test-cases.pdf).
+
+The PDFs are formatted copies of the Markdown documents; the Markdown files remain the editable source.
 - [Project issues](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues)
 
 The application includes authentication, role permissions, product management, purchases, user administration, and audit logging.
