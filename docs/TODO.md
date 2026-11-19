@@ -2,6 +2,10 @@
 
 This file tracks evidence against the [specification](specifications.md) and [checklist](checklist.md). GitHub Issues own implementation scope, assignments, and discussion. Add issue links as work is allocated. Mark an item complete only when its evidence is recorded here or linked from its issue; starter code and template files alone do not establish compliance.
 
+## Current status
+
+The integrated application on `main` has evidence recorded for all 29 checklist points in the integrated candidate section below. Checklist 2.4.3 is supported by a call-path inventory and representative failure tests, not exhaustive per-method fault injection. The final Ant and standalone-package tests and the earlier NetBeans smoke test are recorded there. Earlier dated entries describe historical states and are superseded by that evidence. The prepared distribution is in `app/submission/distribution/`; its credentials are held separately outside the checkout.
+
 ## Setup
 
 - [x] Import the editable course starter and retain source/form pairs.

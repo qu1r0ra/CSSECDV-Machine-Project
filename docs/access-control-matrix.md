@@ -4,9 +4,7 @@ This matrix maps each application feature and protected resource to the six assi
 
 | Feature / Resource | Unregistered | Disabled (1) | Client (2) | Staff (3) | Manager (4) | Admin (5) |
 | --- | --- | --- | --- | --- | --- | --- |
-| Open public login form / submit a login attempt | Yes | Yes | Yes | Yes | Yes | Yes |
 | Sign in successfully with an enabled account and correct credential | No | No | Yes | Yes | Yes | Yes |
-| Open public registration after logging out; new account receives Client (2) | Yes | Yes | Yes | Yes | Yes | Yes |
 | Log out of the current session | No | No | Yes | Yes | Yes | Yes |
 | Enter Admin home panel | No | No | No | No | No | Yes |
 | Enter Manager home panel | No | No | No | No | Yes | No |
@@ -29,9 +27,8 @@ This matrix maps each application feature and protected resource to the six assi
 | Reverify Admin password for sensitive role, deletion, or password changes | No | No | No | No | No | Yes |
 | Review, filter, or show all security audit records | No | No | No | No | No | Yes |
 | Permanently delete security audit records | No | No | No | No | No | No |
-| Generate security audit events for auth, validation, denials, account and business changes | Yes | Yes | Yes | Yes | Yes | Yes |
 
-Login and registration are public routes. Existing users return to the public route through logout before starting another registration. A Disabled account may reach the public login/register screen but cannot create an authenticated session or access a protected home; only an Admin can restore its role. The Admin is not a super-admin and has no product, purchase, or purchase-history privileges.
+Public routes outside the protected-resource matrix: anyone can open the login form and submit an attempt, and anyone can open registration and create a Client account. Existing users return to the public route through logout before starting another registration. A Disabled account may reach the public login/register screen but cannot create an authenticated session or access a protected home; only an Admin can restore its role. The Admin is not a super-admin and has no product, purchase, or purchase-history privileges.
 
 Audit append is automatic and does not grant permission to read logs. Admin audit review is read-only: the Admin may search or show all records, but no role has an application operation for permanent audit deletion. Critical account and product mutations enforce current-password verification in their service before changing state.
 

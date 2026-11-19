@@ -15,6 +15,6 @@ Keep `database.db` and `lib/sqlite-jdbc-3.23.1.jar` beside the JAR as packaged. 
 
 ## Rebuild and test
 
-From the `app` directory, Ant builds the executable JAR. The `prepare-demo-database` target writes a fresh prepared DB and operator credentials when passed new paths; it refuses to overwrite an existing DB. `test-bundle-a`, `test-bundle-b`, `test-ui`, and `test-regression-final-17` run behavior checks. `test-ui` requires a real desktop display. `test-distribution` accepts a disposable copy of this package and the external credential file so the smoke run cannot modify this delivered database.
+From the `app` directory, Ant builds the executable JAR. The `prepare-demo-database` target writes a fresh prepared DB and operator credentials when passed new paths; it refuses to overwrite an existing DB. `test-bundle-a`, `test-bundle-b`, `test-ui`, and `test-regression-final-17` run behavior checks. `test-ui` requires a real desktop display. `test-distribution` uses the external credential file and tests a disposable copy of the selected package database; it checks that the original database remains unchanged.
 
 The tracked runtime distribution intentionally excludes `app/test-lib`; AssertJ Swing and FEST are test-only dependencies.

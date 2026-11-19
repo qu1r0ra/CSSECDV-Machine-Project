@@ -1,6 +1,6 @@
 # Security documentation
 
-This document records the implementation and evidence for the integrated A/B/C candidate delivered for [issue #17](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/17), following the assignment's required vulnerability, impact, and control format. The tested commands, remaining checklist gaps, and distribution evidence are in [TODO.md](TODO.md). Audit retention follows the settled #15/#16 rule: audit rows are append-only through application features, required audit writes fail closed, and there is no permanent audit-delete operation.
+This document records the implementation and evidence for the integrated A/B/C candidate delivered for [issue #17](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/17), following the assignment's required vulnerability, impact, and control format. The tested commands, verification limits, and distribution evidence are in [TODO.md](TODO.md). Audit retention follows the settled #15/#16 rule: audit rows are append-only through application features, required audit writes fail closed, and there is no permanent audit-delete operation.
 
 | Security Requirement / Issue | Added / Modified File/s | Vulnerability | Impact | Security Control |
 | --- | --- | --- | --- | --- |

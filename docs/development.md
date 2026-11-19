@@ -22,7 +22,7 @@ java -jar CSSECDV.jar
 Pop-Location
 ```
 
-Completion: `app/dist/` contains `CSSECDV.jar`, `lib/sqlite-jdbc-3.23.1.jar`, and `database.db`. Launching from that directory uses the packaged database. A Java runtime is still required to run the executable JAR.
+**Development output:** `app/dist/` contains `CSSECDV.jar`, `lib/sqlite-jdbc-3.23.1.jar`, and `database.db`. Launching from that directory uses the packaged starter fixture, which is not the prepared submission database. For the standalone submission use [`app/submission/distribution`](../app/submission/README.md). A Java runtime is required.
 
 For development against the local working database:
 
@@ -43,9 +43,9 @@ ant -f app/build.xml init-db run
   ant -f app/build.xml -Ddistribution.database=database.db jar
   ```
 
-  The override path is relative to `app/`. Review the selected database before distributing it. After security implementation, prepare a database that satisfies the [account and credential requirements](checklist.md), then verify the distribution independently of the development checkout.
+  The override path is relative to `app/`. Review the selected database before distributing it. The checked submission distribution already contains a prepared database; see its [instructions](../app/submission/README.md) and the [verification record](TODO.md).
 
-`build/` and `dist/` are generated and ignored. Include the generated distribution in the final submission as required by the [source-code deliverable](specifications.md#source-code).
+`build/` and `dist/` are generated and ignored. The prepared distribution in `app/submission/distribution/` is included with the source for the [source-code deliverable](specifications.md#source-code).
 
 ## Editing Swing forms
 
@@ -53,17 +53,19 @@ Keep each view's `.java` and `.form` pair together. NetBeans regenerates guarded
 
 To use NetBeans, open `app/` as an existing project. Initialize its working database with `ant -f app/build.xml init-db`, then use Clean and Build and Run. Keep `nbproject/private/` local.
 
-## Supplied baseline and setup changes
+## Historical supplied baseline and setup changes
+
+The following describes the original course starter, not the current implementation. See [readiness evidence](TODO.md) for the integrated application.
 
 The course archive **MP - Security Svcs.zip** contains this Java/Swing MVC application, SQLite driver, and sample database. It matches the technology and screens described in the specification. The starter provides navigation and partial screens, with substantial behavior left to implement:
 
 - Login navigates home without checking credentials; role navigation is unrestricted.
 - Registration ignores password confirmation. Password fields and the user table expose plaintext values.
 - Many user/product actions print values or have empty handlers instead of completing the operation.
-- Database methods concatenate SQL input as supplied. `SQLite.addUser` was parameterized in PR #12; `addHistory`, `addLogs`, `addProduct`, `removeUser`, and `getProduct(name)` still concatenate until Bundle C lands. Schema/bootstrap calls in `Main.java` are commented out.
+- Database methods concatenate SQL input as supplied. `SQLite.addUser` was parameterized in PR #12; `addHistory`, `addLogs`, `addProduct`, `removeUser`, and `getProduct(name)` were unsafe in the original baseline and have since been retired. Schema/bootstrap calls in `Main.java` are commented out.
 - Security logging, failure handling, and permission enforcement need implementation against the checklist.
 
-The import preserves all supplied Java and `.form` files unchanged. It retains the shared NetBeans project configuration and one JDBC JAR. It omits compiled output, private IDE settings, duplicate dependencies, platform metadata, and unused bundled SQLite executables.
+The initial import preserved the supplied Java and `.form` files. It retains the shared NetBeans project configuration and one JDBC JAR. It omits compiled output, private IDE settings, duplicate dependencies, platform metadata, and unused bundled SQLite executables.
 
 Setup changes to the original build are limited to:
 
