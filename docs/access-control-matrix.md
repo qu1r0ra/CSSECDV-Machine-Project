@@ -1,6 +1,6 @@
 # Access control matrix
 
-Status: Bundle B permission mapping from [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6). The service role checks and test-double behavior are implemented; live Swing visibility and actual A/C provider integration remain to be verified under [issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9). This is the B feature matrix, not the whole application's completed access matrix.
+Status: Bundle B permission mapping from [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6). Bundle A authentication/authorization code and the B gateway are now present on `main` (`22a690f`), but actual-provider integrated acceptance and live Swing visibility remain unverified under [issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9). This table maps B features only; add every remaining application feature before claiming a complete access matrix.
 
 | Feature / Resource | Unregistered | Disabled (1) | Client (2) | Staff (3) | Manager (4) | Admin (5) |
 | --- | --- | --- | --- | --- | --- | --- |
