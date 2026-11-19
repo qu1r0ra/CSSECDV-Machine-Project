@@ -1,6 +1,6 @@
 # Security documentation
 
-Status: Bundle B implementation evidence for [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6) and its approved implementation tickets [#7](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/7) and [#8](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/8). Service-level behavior checks use a temporary SQLite database. Integration with the actual Bundle A identity/session provider and Bundle C authorization provider, plus the live Swing walkthrough, remains pending under [integration issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9). These entries do not establish project-wide checklist compliance.
+Status: These entries document Bundle B implementation under [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6) and tickets [#7](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/7) and [#8](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/8). Bundle A authentication/authorization services and the B `AppSecurityGateway` are now present on `main` (`22a690f`); integrated acceptance against actual providers and the live Swing walkthrough have not been recorded. Shared audit persistence and the project-wide security documentation remain open under [integration issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9). This B-focused document does not establish project-wide checklist compliance.
 
 | Security Requirement / Issue | Added / Modified File/s | Vulnerability | Impact | Security Control |
 | --- | --- | --- | --- | --- |

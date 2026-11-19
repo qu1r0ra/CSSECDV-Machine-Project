@@ -1,6 +1,6 @@
 # Demo test cases
 
-Status: Bundle B cases map to [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6). Service behavior is exercised with controlled identity/session doubles and a real temporary SQLite database by `ant -f app/build.xml test-bundle-b`. The actual Swing walkthrough with the integrated A/C providers remains pending [issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9).
+Status: These cases map to Bundle B [issue #6](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/6). The recorded Bundle B service checks use controlled identity/session doubles and temporary SQLite; Bundle A services and the B gateway are now present on `main` (`22a690f`). Actual-provider integrated checks and a live Swing walkthrough remain pending [issue #9](https://github.com/qu1r0ra/CSSECDV-Machine-Project/issues/9). Add A/C scenarios and record execution evidence before treating this as the complete project demo plan.
 
 | Control Group | Test Scenario | Expected Outcome |
 | --- | --- | --- |
